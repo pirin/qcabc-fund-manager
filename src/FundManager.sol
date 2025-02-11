@@ -1,26 +1,3 @@
-/*
-Create a solidity smart contract that will be used to manage the cap table of an investment fund. 
-Here is the logic that the contract need to expose:
-
-1. Contract will provide a way for users to deposit funds into the contract using "depositFunds" method.
-    Deposits are done only in the form of a "deposit token", whose address will be specified during contract creation.
-2. Contract will track the total number of "deposit tokens" sent to it. 
-3. User deposits balance can be sent to external address for investment. Only the contract owner can send
-    the balance for investment.
-4. Contract will provide a method called setPortfolioValue to receive and store the current value of the
-    investment portfolio. Contract will also need to store a timestamp of when the 'setPortfolioValue' method
-    was last called. As part of this method, the contract will also calculate and store the share price. 
-    The share price is calculated by dividing the value of the investment portfolio by the total amount
-    deposited in the fund.
-5. When user deposit funds, they will receive a certain number of share tokens. The address of the share
-    token will be provided during contract creation.
-6. The amount of share tokens received is calculated by multiplying the deposited amount by the current share price.
-7. Users can request a withdraw from the fund by calling "redeemShares" method and providing a number
-    of shares to redeem. 
-8. "redeemShares" method will calculate the current value of the shares by multiplying the shares to redeem
-    by the current share price. Next it will check if it has a sufficient balance of the "deposit tokens" and if it does, it will send the current value of shares amount to the user and burn the share tokens it received.  
-*/
-
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.26;
 
@@ -176,6 +153,9 @@ contract FundManager is Ownable {
         // Mint share tokens to the user.
         s_shareToken.mint(msg.sender, sharesToMint);
 
+        //recaluclate share price
+        calculateSharePrice();
+
         emit Deposited(msg.sender, amount, sharesToMint);
 
         return sharesToMint;
@@ -218,6 +198,9 @@ contract FundManager is Ownable {
 
         // Transfer the deposit tokens to the user.
         s_depositToken.safeTransfer(msg.sender, depositValue);
+
+        //recaluclate share price
+        calculateSharePrice();
 
         emit Redeemed(msg.sender, shareAmount, depositValue);
 
@@ -265,8 +248,10 @@ contract FundManager is Ownable {
      *
      * @param newPortfolioValue The current portfolio value (in deposit token smallest units).
      */
-    function setPortfolioValue(uint256 newPortfolioValue) external onlyOwner {
-        //Don't do anything if we have noi shares
+    function setPortfolioValue(
+        uint256 newPortfolioValue
+    ) external onlyOwner returns (uint256) {
+        //Don't do anything if we have no shares
         uint256 totalShares = s_shareToken.totalSupply();
         if (totalShares == 0) {
             revert FundManager__FundIsInactive();
@@ -275,19 +260,15 @@ contract FundManager is Ownable {
         s_portfolioValue = newPortfolioValue;
         s_lastPortfolioTimestamp = block.timestamp;
 
-        if (totalShares > 0) {
-            s_sharePrice =
-                (s_portfolioValue * (10 ** i_shareDecimals)) /
-                totalShares;
-        } else {
-            s_sharePrice = i_initialSharePrice;
-        }
+        calculateSharePrice();
 
         emit PortfolioUpdated(
             newPortfolioValue,
             s_sharePrice,
             s_lastPortfolioTimestamp
         );
+
+        return newPortfolioValue;
     }
 
     // ========== VIEWS ==========
@@ -303,8 +284,12 @@ contract FundManager is Ownable {
      * @notice Get the current portfolio value.
      * @return The current portfolio value.
      */
-    function getPortfolioValue() external view returns (uint256) {
+    function getPortfolioValue() public view returns (uint256) {
         return s_portfolioValue;
+    }
+
+    function getFundValue() public view returns (uint256) {
+        return getTreasuryBalance() + getPortfolioValue();
     }
 
     /**
@@ -327,7 +312,7 @@ contract FundManager is Ownable {
      * @notice Get the current balance of deposit tokens held by the fund.
      * @return The current balance of deposit tokens.
      */
-    function getTreasuryBalance() external view returns (uint256) {
+    function getTreasuryBalance() public view returns (uint256) {
         return s_depositToken.balanceOf(address(this));
     }
 
@@ -345,5 +330,16 @@ contract FundManager is Ownable {
      */
     function getShareToken() external view returns (address) {
         return address(s_shareToken);
+    }
+
+    function calculateSharePrice() private {
+        uint256 totalShares = s_shareToken.totalSupply();
+        if (totalShares > 0) {
+            s_sharePrice =
+                (getFundValue() * (10 ** i_shareDecimals)) /
+                totalShares;
+        } else {
+            s_sharePrice = i_initialSharePrice;
+        }
     }
 }
