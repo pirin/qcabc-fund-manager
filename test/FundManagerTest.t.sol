@@ -16,7 +16,7 @@ import {CodeConstants} from "../../script/HelperConfig.s.sol";
 contract FundManagerTest is Test, CodeConstants {
     FundManager public fundManager;
     ShareToken public shareToken;
-    address public fundOwner;
+    address public FUND_OWNER;
     HelperConfig public helperConfig;
     Helpers public helpers;
 
@@ -37,6 +37,7 @@ contract FundManagerTest is Test, CodeConstants {
     uint256 public constant USDC_100 = 100 * (10 ** 6);
     uint256 public constant USDC_50 = 50 * (10 ** 6);
     uint256 public constant USDC_10 = 10 * (10 ** 6);
+    uint256 public constant USDC_1 = 1 * (10 ** 6);
 
     uint256 public constant SHARES_100 = 100 * (10 ** 6);
     uint256 public constant SHARES_50 = 50 * (10 ** 6);
@@ -49,7 +50,7 @@ contract FundManagerTest is Test, CodeConstants {
         (fundManager, shareToken, helperConfig) = deployFundManager.run();
 
         depositToken = ERC20(helperConfig.getConfig().depositToken);
-        fundOwner = helperConfig.getConfig().ownerAdress;
+        FUND_OWNER = helperConfig.getConfig().ownerAdress;
 
         if (block.chainid == LOCAL_CHAIN_ID) {
             console.log("Dealing funds to Investors...");
@@ -63,6 +64,18 @@ contract FundManagerTest is Test, CodeConstants {
         }
     }
 
+    // ==================== Test Constructor ====================
+    function testConstructorRevertInvalidDepositTokenContract() public {
+        vm.expectRevert(FundManager.FundManager__InvalidDepositTokenContract.selector);
+        new FundManager(address(0), address(shareToken));
+    }
+
+    function testConstructorRevertInvalidShareTokenContract() public {
+        vm.expectRevert(FundManager.FundManager__InvalidShareTokenContract.selector);
+        new FundManager(address(depositToken), address(0));
+    }
+
+    // ==================== Test Initial State ====================
     function testInitialShareTokenTotalSupplyIsZero() external view {
         assertEq(shareToken.totalSupply(), 0);
     }
@@ -93,12 +106,7 @@ contract FundManagerTest is Test, CodeConstants {
         assertEq(fundManager.getTreasuryBalance(), 0);
     }
 
-    function testRevertIfsetPortfolioValueIsCalledOnInactveFund() external {
-        vm.prank(fundOwner);
-        vm.expectRevert(FundManager.FundManager__FundIsInactive.selector);
-        fundManager.setPortfolioValue(1);
-    }
-
+    // ==================== Investment Workflow Tests ====================
     function testSimpleDepositAndWithdraw() external {
         uint256 sharesMinted = _deposit(INVESTOR_1, USDC_100);
         assertEq(sharesMinted, SHARES_100);
@@ -144,15 +152,113 @@ contract FundManagerTest is Test, CodeConstants {
         _printFundInfo();
     }
 
+    // ==================== Update Portfolio Value Tests ====================
+    function testRevertIfsetPortfolioValueIsCalledOnInactveFund() external {
+        vm.prank(FUND_OWNER);
+        vm.expectRevert(FundManager.FundManager__FundIsInactive.selector);
+        fundManager.setPortfolioValue(1);
+    }
+
+    function testSetPortfolioValueRevertNonOwner() public {
+        vm.prank(INVESTOR_1);
+        vm.expectRevert();
+        fundManager.setPortfolioValue(USDC_200);
+    }
+
+    function testSetPortfolioValueRevertWhenNoShares() public {
+        // No deposit => no shares => fund inactive.
+        vm.prank(FUND_OWNER);
+        vm.expectRevert(abi.encodeWithSelector(FundManager.FundManager__FundIsInactive.selector));
+        fundManager.setPortfolioValue(USDC_200);
+    }
+
+    // ==================== Deposit Tests ====================
     function testDepositFundsRevertZeroAmount() public {
         vm.prank(INVESTOR_1);
         vm.expectRevert(FundManager.FundManager__InvalidInvestmentAmount.selector);
         fundManager.depositFunds(0);
     }
 
+    // ==================== Redeem Tests ====================
+    function testRedeemSharesRevertZeroShares() public {
+        vm.prank(INVESTOR_1);
+        vm.expectRevert(FundManager.FundManager__InvalidShareAmount.selector);
+        fundManager.redeemShares(0);
+    }
+
+    function testRedeemSharesRevertInsufficientBalance() public {
+        // alice has no shares yet so any call should revert
+        vm.prank(INVESTOR_1);
+        vm.expectRevert(FundManager.FundManager__InvalidShareAmount.selector);
+        fundManager.redeemShares(100);
+    }
+
+    function testRedeemSharesInsufficientTreasuryFunds() public {
+        uint256 mintedShares = _deposit(INVESTOR_1, USDC_200);
+        _invest(USDC_100);
+
+        vm.prank(INVESTOR_1);
+        vm.expectRevert(
+            abi.encodeWithSelector(FundManager.FundManager__InsufficientTreasuryFunds.selector, 100000000, 200000000)
+        );
+        fundManager.redeemShares(mintedShares);
+    }
+
+    // ==================== Invest Tests ====================
+    function testInvestFundsRevertNonOwner() public {
+        vm.prank(INVESTOR_1);
+        vm.expectRevert();
+        fundManager.investFunds(PORTFOLIO_WALLET, USDC_10);
+    }
+
+    function testInvestFundsRevertZeroAmount() public {
+        vm.prank(FUND_OWNER);
+        vm.expectRevert(FundManager.FundManager__InvalidInvestmentAmount.selector);
+        fundManager.investFunds(PORTFOLIO_WALLET, 0);
+    }
+
+    function testInvestFundsRevertInvalidRecipient() public {
+        vm.prank(FUND_OWNER);
+        vm.expectRevert(FundManager.FundManager__InvalidRecipient.selector);
+        fundManager.investFunds(address(0), 1e18);
+    }
+
+    function testInvestFundsInsufficientTreasury() public {
+        _deposit(INVESTOR_1, USDC_200);
+
+        vm.prank(FUND_OWNER);
+        vm.expectRevert(
+            abi.encodeWithSelector(FundManager.FundManager__InsufficientTreasuryFunds.selector, 200000000, 200000001)
+        );
+        fundManager.investFunds(PORTFOLIO_WALLET, USDC_200 + 1);
+    }
+
+    // ==================== View Functions Tests ====================
+    function testViewFunctions() public {
+        vm.prank(INVESTOR_1);
+        fundManager.depositFunds(USDC_100);
+
+        uint256 preUpdateTimestamp = fundManager.getLastPortfolioTimestamp();
+        assertEq(preUpdateTimestamp, 0);
+
+        vm.prank(FUND_OWNER);
+        fundManager.setPortfolioValue(USDC_50);
+
+        assertEq(fundManager.getTotalDeposited(), USDC_100);
+        assertEq(fundManager.getPortfolioValue(), USDC_50);
+        assertEq(fundManager.getFundValue(), USDC_100 + USDC_50);
+        assertEq(fundManager.getSharePrice(), 1500000); //100 deposited + 50 increase in value = 150 total value / 100 shares = 1.5 USDC/share
+
+        assertGt(fundManager.getLastPortfolioTimestamp(), preUpdateTimestamp);
+
+        assertEq(fundManager.getTreasuryBalance(), USDC_100);
+        assertEq(fundManager.getDepositToken(), address(depositToken));
+        assertEq(fundManager.getShareToken(), address(shareToken));
+    }
+
     // ==================== helper functions ====================
     function _dealAndApprove(address investor, uint256 amount) private {
-        vm.prank(fundOwner);
+        vm.prank(FUND_OWNER);
         depositToken.transfer(investor, amount);
 
         vm.prank(investor);
@@ -220,7 +326,7 @@ contract FundManagerTest is Test, CodeConstants {
     function _adjustPortfolioValue(uint256 newPortfolioValue) private returns (uint256) {
         console.log("\n===== Adjusting portfolio value to: ", helpers.toString6(newPortfolioValue), " USDC");
 
-        vm.prank(fundOwner);
+        vm.prank(FUND_OWNER);
         vm.expectEmit(true, false, false, false);
         emit FundManager.PortfolioUpdated(newPortfolioValue, 0, 0);
         uint256 actualPortfolioValue = fundManager.setPortfolioValue(newPortfolioValue);
@@ -234,7 +340,7 @@ contract FundManagerTest is Test, CodeConstants {
         uint256 pdTreasuryUSDC = fundManager.getTreasuryBalance();
         uint256 pdPortfolioWalletBalanceUSDC = depositToken.balanceOf(PORTFOLIO_WALLET);
 
-        vm.prank(fundOwner);
+        vm.prank(FUND_OWNER);
         vm.expectEmit(true, true, false, false);
         emit FundManager.Invested(PORTFOLIO_WALLET, amount);
         fundManager.investFunds(PORTFOLIO_WALLET, amount);
@@ -242,7 +348,7 @@ contract FundManagerTest is Test, CodeConstants {
         //as treasury funds are decreased, portfolio value is increased by the same amount
         //such that the total fund value remains the same
         uint256 currentPortfolioValue = fundManager.getPortfolioValue();
-        vm.prank(fundOwner);
+        vm.prank(FUND_OWNER);
         fundManager.setPortfolioValue(currentPortfolioValue + amount);
 
         uint256 adTreasuryUSDC = fundManager.getTreasuryBalance();
