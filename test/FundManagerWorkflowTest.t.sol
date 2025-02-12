@@ -17,6 +17,8 @@ contract FundManagerWorkflowTest is FundManagerBase {
     }
 
     function testComplexWorkflowDepositAndWithdraw() external {
+        _printFundInfo();
+
         //deposit 100 USDC
         uint256 sharesMinted1 = _deposit(INVESTOR_1, USDC_100);
         assertEq(sharesMinted1, SHARES_100);
@@ -37,7 +39,7 @@ contract FundManagerWorkflowTest is FundManagerBase {
         _invest(USDC_150); //portfolio value is automatically adjusted for
 
         //fund increased in value by 50 USDC
-        _adjustPortfolioValue(USDC_200); //potfolio is now worth 200 USDC (more than the cost basis)
+        _adjustPortfolioValue(fundManager.getPortfolioValue() + USDC_50); //potfolio is now worth 50 USDC above the cost basis
 
         uint256 sharesMinted3 = _deposit(INVESTOR_3, USDC_100);
         assertEq(sharesMinted3, 75000018);
@@ -46,10 +48,19 @@ contract FundManagerWorkflowTest is FundManagerBase {
         assertEq(sharesMinted4, 75000018);
 
         //fund decreased in value by 150 USDC
-        _adjustPortfolioValue(USDC_50); //potfolio is now worth 50 USDC (less than the cost basis)
+        _adjustPortfolioValue(fundManager.getPortfolioValue() - USDC_150); //potfolio is now worth 50 USDC below the cost basis
 
         uint256 sharesMinted5 = _deposit(INVESTOR_5, USDC_100);
         assertEq(sharesMinted5, 120000048);
+
+        uint256 redemption1 = _redeem(INVESTOR_1, sharesMinted1); //share price is 0.83
+        assertEq(redemption1, 83333300); //gets 83.33 USDC back
+
+        //fund increased in value by 50 USDC
+        _adjustPortfolioValue(fundManager.getPortfolioValue() + USDC_200); //potfolio is now worth 200 USDC above the cost basis
+
+        uint256 redemption2 = _redeem(INVESTOR_2, sharesMinted2); //share price is 1.46
+        assertEq(redemption2, 72916650); //user gets 72.91 USDC back
 
         _printFundInfo();
     }

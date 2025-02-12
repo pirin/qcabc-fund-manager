@@ -99,7 +99,7 @@ contract FundManagerBase is Test, CodeConstants {
         assertEq(adShareSupply, pdShareSupply + sharesMinted); //total supply of shares was incread by minted amount
 
         console.log(
-            "=====> Investor Deposited ",
+            "\n>>>>> Investor Deposited ",
             amount / 1000000,
             " USDC. Shares minted: ",
             TestHelpers.toString6(sharesMinted)
@@ -132,11 +132,15 @@ contract FundManagerBase is Test, CodeConstants {
         assertEq(adInvestorShares, pdInvestorShares - shares); //investor got less shares
         assertEq(adShareSupply, pdShareSupply - shares); //total supply of shares was decreased by burned shares
 
+        console.log(
+            "\n<<<<< Investor Redeemed ", shares / 1000000, " Shares. USDC received: ", TestHelpers.toString6(proceeds)
+        );
+
         return proceeds;
     }
 
     function _adjustPortfolioValue(uint256 newPortfolioValue) internal returns (uint256) {
-        console.log("\n===== Adjusting portfolio value to: ", TestHelpers.toString6(newPortfolioValue), " USDC");
+        console.log("\n^^^^^ Adjusting portfolio value to: ", TestHelpers.toString6(newPortfolioValue), " USDC");
 
         vm.prank(FUND_OWNER);
         vm.expectEmit(true, false, false, false);
@@ -169,11 +173,11 @@ contract FundManagerBase is Test, CodeConstants {
         assertEq(adTreasuryUSDC, pdTreasuryUSDC - amount); //balance in the fund has decreased by the right amount
         assertEq(adPortfolioWalletBalanceUSDC, pdPortfolioWalletBalanceUSDC + amount); //balance in the fund has decreased by the right amount
 
-        console.log("\n===== Fund Invested ", TestHelpers.toString6(amount), " USDC");
+        console.log("\n----> Fund Invested ", TestHelpers.toString6(amount), " USDC");
     }
 
     function _printFundInfo() internal view {
-        console.log("Fund Info:");
+        console.log("\nFund Info:");
         console.log("   Total Fund Value:  ", TestHelpers.toString6(fundManager.getFundValue()), " USDC");
         console.log("   Treasury Balance:  ", TestHelpers.toString6(fundManager.getTreasuryBalance()), "USDC");
         console.log("   Portfolio Value:   ", TestHelpers.toString6(fundManager.getPortfolioValue()), " USDC");
