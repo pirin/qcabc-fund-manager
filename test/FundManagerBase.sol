@@ -139,10 +139,10 @@ contract FundManagerBase is Test, CodeConstants {
         return proceeds;
     }
 
-    function _adjustPortfolioValue(uint256 newPortfolioValue) internal returns (uint256) {
+    function _adjustPortfolioValue(uint256 newPortfolioValue, address caller) internal returns (uint256) {
         console.log("\n^^^^^ Adjusting portfolio value to: ", TestHelpers.toString6(newPortfolioValue), " USDC");
 
-        vm.prank(FUND_OWNER);
+        vm.prank(caller);
         vm.expectEmit(true, false, false, false);
         emit FundManager.PortfolioUpdated(newPortfolioValue, 0, 0);
         uint256 actualPortfolioValue = fundManager.setPortfolioValue(newPortfolioValue);

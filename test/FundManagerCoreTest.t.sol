@@ -56,7 +56,49 @@ contract FundManagerCoreTest is FundManagerBase {
     function testRevertIfsetPortfolioValueIsCalledOnInactveFund() external {
         vm.prank(FUND_OWNER);
         vm.expectRevert(FundManager.FundManager__FundIsInactive.selector);
-        fundManager.setPortfolioValue(1);
+        fundManager.setPortfolioValue(USDC_10);
+    }
+
+    function testRevertIfPortfolioValueCallerIsNotWhitelisted() external {
+        vm.prank(INVESTOR_6);
+        vm.expectRevert(FundManager.FundManager__InvalidCaller.selector);
+        fundManager.setPortfolioValue(USDC_10);
+    }
+
+    function testUpdatePortfolioValueByOwner() external {
+        _deposit(INVESTOR_1, USDC_100);
+        _adjustPortfolioValue(USDC_50, FUND_OWNER);
+    }
+
+    function testUpdatePortfolioValueByWhitelistedCaller() external {
+        _deposit(INVESTOR_1, USDC_100);
+
+        vm.prank(FUND_OWNER);
+        vm.expectEmit(true, false, false, false);
+        emit FundManager.AddressWhitelisted(INVESTOR_6);
+        fundManager.addToWhitelist(INVESTOR_6);
+
+        _adjustPortfolioValue(USDC_50, INVESTOR_6);
+    }
+
+    function testRevertUpdatePortfolioValueByUNWhitelistedCaller() external {
+        _deposit(INVESTOR_1, USDC_100);
+
+        vm.prank(FUND_OWNER);
+        vm.expectEmit(true, false, false, false);
+        emit FundManager.AddressWhitelisted(INVESTOR_6);
+        fundManager.addToWhitelist(INVESTOR_6);
+
+        _adjustPortfolioValue(USDC_50, INVESTOR_6);
+
+        vm.prank(FUND_OWNER);
+        vm.expectEmit(true, false, false, false);
+        emit FundManager.AddressRemovedFromWhitelist(INVESTOR_6);
+        fundManager.removeFromWhitelist(INVESTOR_6);
+
+        vm.prank(INVESTOR_6);
+        vm.expectRevert(FundManager.FundManager__InvalidCaller.selector);
+        fundManager.setPortfolioValue(USDC_10);
     }
 
     function testSetPortfolioValueRevertNonOwner() public {
@@ -101,6 +143,46 @@ contract FundManagerCoreTest is FundManagerBase {
         vm.expectRevert(
             abi.encodeWithSelector(FundManager.FundManager__InsufficientTreasuryFunds.selector, 100000000, 200000000)
         );
+        fundManager.redeemShares(mintedShares);
+    }
+
+    function testPauseRedemptions() public {
+        vm.prank(FUND_OWNER);
+        fundManager.pauseRedemptions();
+        assertEq(fundManager.redemptionsAllowed(), false);
+    }
+
+    function testResumeRedemptions() public {
+        vm.prank(FUND_OWNER);
+        fundManager.pauseRedemptions();
+        assertEq(fundManager.redemptionsAllowed(), false);
+
+        vm.prank(FUND_OWNER);
+        fundManager.resumeRedemptions();
+        assertEq(fundManager.redemptionsAllowed(), true);
+    }
+
+    function testRedeemSharesRevertWhenPaused() public {
+        uint256 mintedShares = _deposit(INVESTOR_1, USDC_200);
+
+        vm.prank(FUND_OWNER);
+        fundManager.pauseRedemptions();
+
+        vm.prank(INVESTOR_1);
+        vm.expectRevert(FundManager.FundManager__RedemptionsPaused.selector);
+        fundManager.redeemShares(mintedShares);
+    }
+
+    function testRedeemSharesAllowedWhenResumed() public {
+        uint256 mintedShares = _deposit(INVESTOR_1, USDC_200);
+
+        vm.prank(FUND_OWNER);
+        fundManager.pauseRedemptions();
+
+        vm.prank(FUND_OWNER);
+        fundManager.resumeRedemptions();
+
+        vm.prank(INVESTOR_1);
         fundManager.redeemShares(mintedShares);
     }
 

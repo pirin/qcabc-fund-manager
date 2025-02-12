@@ -64,6 +64,18 @@ contract FundManager is Ownable {
     uint8 private immutable i_shareDecimals;
     uint256 private immutable i_initialSharePrice;
 
+    /// @notice Mapping to store whitelisted addresses.
+    mapping(address => bool) private s_whitelistedAddresses;
+
+    /// @notice Enum to represent the redemption state.
+    enum RedemptionState {
+        ALLOWED,
+        PAUSED
+    }
+
+    /// @notice The current redemption state.
+    RedemptionState private s_redemptionState;
+
     // ========== ERRORS ==========
 
     error FundManager__InsufficientTreasuryFunds(uint256 available, uint256 required);
@@ -73,6 +85,8 @@ contract FundManager is Ownable {
     error FundManager__InvalidShareTokenContract();
     error FundManager__InvalidDepositTokenContract();
     error FundManager__FundIsInactive();
+    error FundManager__InvalidCaller();
+    error FundManager__RedemptionsPaused();
 
     // ========== EVENTS ==========
 
@@ -80,6 +94,10 @@ contract FundManager is Ownable {
     event Invested(address indexed to, uint256 indexed amount);
     event PortfolioUpdated(uint256 indexed newPortfolioValue, uint256 indexed newSharePrice, uint256 indexed timestamp);
     event Redeemed(address indexed user, uint256 indexed shareTokensRedeemed, uint256 indexed depositAmount);
+    event RedemptionsPaused();
+    event RedemptionsResumed();
+    event AddressWhitelisted(address indexed addr);
+    event AddressRemovedFromWhitelist(address indexed addr);
 
     // ========== CONSTRUCTOR ==========
 
@@ -104,6 +122,29 @@ contract FundManager is Ownable {
 
         i_initialSharePrice = 1 * 10 ** i_shareDecimals;
         s_sharePrice = i_initialSharePrice;
+
+        s_redemptionState = RedemptionState.ALLOWED;
+    }
+
+    // ========== MODIFIERS ==========
+    /**
+     * @notice Modifier to check if the caller is whitelisted (Owner is always whitelisted).
+     */
+    modifier onlyWhitelistedOrOwner() {
+        if (!s_whitelistedAddresses[msg.sender] && msg.sender != owner()) {
+            revert FundManager__InvalidCaller();
+        }
+        _;
+    }
+
+    /**
+     * @notice Modifier to check if redemptions are allowed.
+     */
+    modifier whenRedemptionsAllowed() {
+        if (s_redemptionState == RedemptionState.PAUSED) {
+            revert FundManager__RedemptionsPaused();
+        }
+        _;
     }
 
     // ========== USER FUNCTIONS ==========
@@ -148,7 +189,7 @@ contract FundManager is Ownable {
      *
      * @param shareAmount The amount of share tokens to redeem.
      */
-    function redeemShares(uint256 shareAmount) external returns (uint256) {
+    function redeemShares(uint256 shareAmount) external whenRedemptionsAllowed returns (uint256) {
         if (shareAmount == 0) {
             revert FundManager__InvalidShareAmount();
         }
@@ -213,6 +254,24 @@ contract FundManager is Ownable {
     }
 
     /**
+     * @notice Add an address to the whitelist.
+     * @param addr The address to whitelist.
+     */
+    function addToWhitelist(address addr) external onlyOwner {
+        s_whitelistedAddresses[addr] = true;
+        emit AddressWhitelisted(addr);
+    }
+
+    /**
+     * @notice Remove an address from the whitelist.
+     * @param addr The address to remove from the whitelist.
+     */
+    function removeFromWhitelist(address addr) external onlyOwner {
+        s_whitelistedAddresses[addr] = false;
+        emit AddressRemovedFromWhitelist(addr);
+    }
+
+    /**
      * @notice Update the portfolio’s current value.
      * Supplied value must be converted to the format of the Deposit Token.
      * (e.g. with i_shareDecimals decimals)
@@ -225,7 +284,7 @@ contract FundManager is Ownable {
      *
      * @param newPortfolioValue The current portfolio value (in deposit token smallest units).
      */
-    function setPortfolioValue(uint256 newPortfolioValue) external onlyOwner returns (uint256) {
+    function setPortfolioValue(uint256 newPortfolioValue) external onlyWhitelistedOrOwner returns (uint256) {
         //Don't do anything if we have no shares
         uint256 totalShares = s_shareToken.totalSupply();
         if (totalShares == 0) {
@@ -240,6 +299,24 @@ contract FundManager is Ownable {
         emit PortfolioUpdated(newPortfolioValue, s_sharePrice, s_lastPortfolioTimestamp);
 
         return newPortfolioValue;
+    }
+
+    /**
+     * @notice Pause redemptions.
+     * Only the owner may call this function.
+     */
+    function pauseRedemptions() external onlyOwner {
+        s_redemptionState = RedemptionState.PAUSED;
+        emit RedemptionsPaused();
+    }
+
+    /**
+     * @notice Resume redemptions.
+     * Only the owner may call this function.
+     */
+    function resumeRedemptions() external onlyOwner {
+        s_redemptionState = RedemptionState.ALLOWED;
+        emit RedemptionsResumed();
     }
 
     // ========== VIEWS ==========
@@ -303,6 +380,17 @@ contract FundManager is Ownable {
         return address(s_shareToken);
     }
 
+    /**
+     * @notice Check if redemptions are currently allowed.
+     * @return True if redemptions are allowed, false otherwise.
+     */
+    function redemptionsAllowed() external view returns (bool) {
+        return s_redemptionState == RedemptionState.ALLOWED;
+    }
+
+    /**
+     * @notice Calculate the share price based on the current portfolio value and total shares outstanding.
+     */
     function calculateSharePrice() private {
         uint256 totalShares = s_shareToken.totalSupply();
         if (totalShares > 0) {
