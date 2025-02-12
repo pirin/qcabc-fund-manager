@@ -3,22 +3,25 @@
 pragma solidity ^0.8.26;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import {DeployFundManager} from "../script/DeployFundManager.s.sol";
+
+import "./TestHelpers.sol";
+import {MockUSDC} from "./mocks/MockUSDC.sol";
+
 import {FundManager} from "../src/FundManager.sol";
 import {ShareToken} from "../src/ShareToken.sol";
-import {HelperConfig} from "../../script/HelperConfig.s.sol";
-import {Helpers} from "../../script/Helpers.s.sol";
+
+import {DeployFundManager} from "../script/DeployFundManager.s.sol";
+import {HelperConfig} from "../script/HelperConfig.s.sol";
+import {CodeConstants} from "../script/HelperConfig.s.sol";
+
 import {Test, console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {MockUSDC} from "./mocks/MockUSDC.sol";
-import {CodeConstants} from "../../script/HelperConfig.s.sol";
 
 contract FundManagerBase is Test, CodeConstants {
     FundManager public fundManager;
     ShareToken public shareToken;
     address public FUND_OWNER;
     HelperConfig public helperConfig;
-    Helpers public helpers;
 
     ERC20 public depositToken;
 
@@ -44,8 +47,6 @@ contract FundManagerBase is Test, CodeConstants {
     uint256 public constant SHARES_10 = 50 * (10 ** 6);
 
     function setUp() external {
-        helpers = new Helpers();
-
         DeployFundManager deployFundManager = new DeployFundManager();
         (fundManager, shareToken, helperConfig) = deployFundManager.run();
 
@@ -98,7 +99,10 @@ contract FundManagerBase is Test, CodeConstants {
         assertEq(adShareSupply, pdShareSupply + sharesMinted); //total supply of shares was incread by minted amount
 
         console.log(
-            "=====> Investor Deposited ", amount / 1000000, " USDC. Shares minted: ", helpers.toString6(sharesMinted)
+            "=====> Investor Deposited ",
+            amount / 1000000,
+            " USDC. Shares minted: ",
+            TestHelpers.toString6(sharesMinted)
         );
 
         return sharesMinted;
@@ -132,7 +136,7 @@ contract FundManagerBase is Test, CodeConstants {
     }
 
     function _adjustPortfolioValue(uint256 newPortfolioValue) internal returns (uint256) {
-        console.log("\n===== Adjusting portfolio value to: ", helpers.toString6(newPortfolioValue), " USDC");
+        console.log("\n===== Adjusting portfolio value to: ", TestHelpers.toString6(newPortfolioValue), " USDC");
 
         vm.prank(FUND_OWNER);
         vm.expectEmit(true, false, false, false);
@@ -165,54 +169,54 @@ contract FundManagerBase is Test, CodeConstants {
         assertEq(adTreasuryUSDC, pdTreasuryUSDC - amount); //balance in the fund has decreased by the right amount
         assertEq(adPortfolioWalletBalanceUSDC, pdPortfolioWalletBalanceUSDC + amount); //balance in the fund has decreased by the right amount
 
-        console.log("\n===== Fund Invested ", helpers.toString6(amount), " USDC");
+        console.log("\n===== Fund Invested ", TestHelpers.toString6(amount), " USDC");
     }
 
     function _printFundInfo() internal view {
         console.log("Fund Info:");
-        console.log("   Total Fund Value:  ", helpers.toString6(fundManager.getFundValue()), " USDC");
-        console.log("   Treasury Balance:  ", helpers.toString6(fundManager.getTreasuryBalance()), "USDC");
-        console.log("   Portfolio Value:   ", helpers.toString6(fundManager.getPortfolioValue()), " USDC");
-        console.log("   Share Price:       ", helpers.toString6(fundManager.getSharePrice()), " USDC");
-        console.log("   Share Total Supply:", helpers.toString6(shareToken.totalSupply()), " Shares");
+        console.log("   Total Fund Value:  ", TestHelpers.toString6(fundManager.getFundValue()), " USDC");
+        console.log("   Treasury Balance:  ", TestHelpers.toString6(fundManager.getTreasuryBalance()), "USDC");
+        console.log("   Portfolio Value:   ", TestHelpers.toString6(fundManager.getPortfolioValue()), " USDC");
+        console.log("   Share Price:       ", TestHelpers.toString6(fundManager.getSharePrice()), " USDC");
+        console.log("   Share Total Supply:", TestHelpers.toString6(shareToken.totalSupply()), " Shares");
 
         //print incvestor balance and shares owned on the same line
         console.log("\nCap Table:");
         console.log(
             "   Investor 1: - Balance:",
-            helpers.toString6(depositToken.balanceOf(INVESTOR_1)),
+            TestHelpers.toString6(depositToken.balanceOf(INVESTOR_1)),
             "USDC, Shares: ",
-            helpers.toString6(shareToken.balanceOf(INVESTOR_1))
+            TestHelpers.toString6(shareToken.balanceOf(INVESTOR_1))
         );
         console.log(
             "   Investor 2: - Balance:",
-            helpers.toString6(depositToken.balanceOf(INVESTOR_2)),
+            TestHelpers.toString6(depositToken.balanceOf(INVESTOR_2)),
             "USDC, Shares: ",
-            helpers.toString6(shareToken.balanceOf(INVESTOR_2))
+            TestHelpers.toString6(shareToken.balanceOf(INVESTOR_2))
         );
         console.log(
             "   Investor 3: - Balance:",
-            helpers.toString6(depositToken.balanceOf(INVESTOR_3)),
+            TestHelpers.toString6(depositToken.balanceOf(INVESTOR_3)),
             "USDC, Shares: ",
-            helpers.toString6(shareToken.balanceOf(INVESTOR_3))
+            TestHelpers.toString6(shareToken.balanceOf(INVESTOR_3))
         );
         console.log(
             "   Investor 4: - Balance:",
-            helpers.toString6(depositToken.balanceOf(INVESTOR_4)),
+            TestHelpers.toString6(depositToken.balanceOf(INVESTOR_4)),
             "USDC, Shares: ",
-            helpers.toString6(shareToken.balanceOf(INVESTOR_4))
+            TestHelpers.toString6(shareToken.balanceOf(INVESTOR_4))
         );
         console.log(
             "   Investor 5: - Balance:",
-            helpers.toString6(depositToken.balanceOf(INVESTOR_5)),
+            TestHelpers.toString6(depositToken.balanceOf(INVESTOR_5)),
             "USDC, Shares: ",
-            helpers.toString6(shareToken.balanceOf(INVESTOR_5))
+            TestHelpers.toString6(shareToken.balanceOf(INVESTOR_5))
         );
         console.log(
             "   Investor 6: - Balance:",
-            helpers.toString6(depositToken.balanceOf(INVESTOR_6)),
+            TestHelpers.toString6(depositToken.balanceOf(INVESTOR_6)),
             "USDC, Shares: ",
-            helpers.toString6(shareToken.balanceOf(INVESTOR_6))
+            TestHelpers.toString6(shareToken.balanceOf(INVESTOR_6))
         );
     }
 }
