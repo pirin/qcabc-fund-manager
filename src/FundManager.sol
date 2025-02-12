@@ -66,10 +66,7 @@ contract FundManager is Ownable {
 
     // ========== ERRORS ==========
 
-    error FundManager__InsufficientTreasuryFunds(
-        uint256 available,
-        uint256 required
-    );
+    error FundManager__InsufficientTreasuryFunds(uint256 available, uint256 required);
     error FundManager__InvalidShareAmount();
     error FundManager__InvalidInvestmentAmount();
     error FundManager__InvalidRecipient();
@@ -79,22 +76,10 @@ contract FundManager is Ownable {
 
     // ========== EVENTS ==========
 
-    event Deposited(
-        address indexed user,
-        uint256 indexed depositAmount,
-        uint256 indexed shareTokensMinted
-    );
+    event Deposited(address indexed user, uint256 indexed depositAmount, uint256 indexed shareTokensMinted);
     event Invested(address indexed to, uint256 indexed amount);
-    event PortfolioUpdated(
-        uint256 indexed newPortfolioValue,
-        uint256 indexed newSharePrice,
-        uint256 indexed timestamp
-    );
-    event Redeemed(
-        address indexed user,
-        uint256 indexed shareTokensRedeemed,
-        uint256 indexed depositAmount
-    );
+    event PortfolioUpdated(uint256 indexed newPortfolioValue, uint256 indexed newSharePrice, uint256 indexed timestamp);
+    event Redeemed(address indexed user, uint256 indexed shareTokensRedeemed, uint256 indexed depositAmount);
 
     // ========== CONSTRUCTOR ==========
 
@@ -105,10 +90,7 @@ contract FundManager is Ownable {
      *
      * The Ownable constructor is called with the deployer’s address as the initial owner.
      */
-    constructor(
-        address _depositToken,
-        address _shareToken
-    ) Ownable(msg.sender) {
+    constructor(address _depositToken, address _shareToken) Ownable(msg.sender) {
         if (_depositToken == address(0)) {
             revert FundManager__InvalidDepositTokenContract();
         }
@@ -147,8 +129,7 @@ contract FundManager is Ownable {
 
         // Calculate share tokens to mint:
         // sharesToMint = (amount * 10^(shareDecimals)) / currentSharePrice.
-        uint256 sharesToMint = (amount * (10 ** i_shareDecimals)) /
-            currentSharePrice;
+        uint256 sharesToMint = (amount * (10 ** i_shareDecimals)) / currentSharePrice;
 
         // Mint share tokens to the user.
         s_shareToken.mint(msg.sender, sharesToMint);
@@ -181,16 +162,12 @@ contract FundManager is Ownable {
 
         // Calculate the deposit token value:
         // depositValue = (shareAmount * sharePrice) / (10^(shareDecimals)).
-        uint256 depositValue = (shareAmount * s_sharePrice) /
-            (10 ** i_shareDecimals);
+        uint256 depositValue = (shareAmount * s_sharePrice) / (10 ** i_shareDecimals);
 
         // Check that the contract has enough deposit tokens.
         uint256 available = s_depositToken.balanceOf(address(this));
         if (available < depositValue) {
-            revert FundManager__InsufficientTreasuryFunds(
-                available,
-                depositValue
-            );
+            revert FundManager__InsufficientTreasuryFunds(available, depositValue);
         }
 
         // Burn the share tokens from the user.
@@ -248,9 +225,7 @@ contract FundManager is Ownable {
      *
      * @param newPortfolioValue The current portfolio value (in deposit token smallest units).
      */
-    function setPortfolioValue(
-        uint256 newPortfolioValue
-    ) external onlyOwner returns (uint256) {
+    function setPortfolioValue(uint256 newPortfolioValue) external onlyOwner returns (uint256) {
         //Don't do anything if we have no shares
         uint256 totalShares = s_shareToken.totalSupply();
         if (totalShares == 0) {
@@ -262,11 +237,7 @@ contract FundManager is Ownable {
 
         calculateSharePrice();
 
-        emit PortfolioUpdated(
-            newPortfolioValue,
-            s_sharePrice,
-            s_lastPortfolioTimestamp
-        );
+        emit PortfolioUpdated(newPortfolioValue, s_sharePrice, s_lastPortfolioTimestamp);
 
         return newPortfolioValue;
     }
@@ -335,9 +306,7 @@ contract FundManager is Ownable {
     function calculateSharePrice() private {
         uint256 totalShares = s_shareToken.totalSupply();
         if (totalShares > 0) {
-            s_sharePrice =
-                (getFundValue() * (10 ** i_shareDecimals)) /
-                totalShares;
+            s_sharePrice = (getFundValue() * (10 ** i_shareDecimals)) / totalShares;
         } else {
             s_sharePrice = i_initialSharePrice;
         }

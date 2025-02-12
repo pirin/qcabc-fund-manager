@@ -5,11 +5,9 @@ import {Script, console2} from "forge-std/Script.sol";
 import {MockUSDC} from "../test/mocks/MockUSDC.sol";
 
 abstract contract CodeConstants {
-    address public ANVIL_CONTRACT_CREATOR =
-        0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+    address public ANVIL_CONTRACT_CREATOR = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 
-    address public constant BASE_SEPOLIA_CONTRACT_CREATOR =
-        0x70997970C51812dc3A010C7d01b50e0d17dc79C8; //Change for each network
+    address public constant BASE_SEPOLIA_CONTRACT_CREATOR = 0x70997970C51812dc3A010C7d01b50e0d17dc79C8; //Change for each network
 
     uint256 public constant BASE_SEPOLIA_CHAIN_ID = 84532;
     uint256 public constant ETH_MAINNET_CHAIN_ID = 1;
@@ -42,16 +40,11 @@ contract HelperConfig is CodeConstants, Script {
         return getConfigByChainId(block.chainid);
     }
 
-    function setConfig(
-        uint256 chainId,
-        NetworkConfig memory networkConfig
-    ) public {
+    function setConfig(uint256 chainId, NetworkConfig memory networkConfig) public {
         networkConfigs[chainId] = networkConfig;
     }
 
-    function getConfigByChainId(
-        uint256 chainId
-    ) public returns (NetworkConfig memory) {
+    function getConfigByChainId(uint256 chainId) public returns (NetworkConfig memory) {
         if (networkConfigs[chainId].depositToken != address(0)) {
             return networkConfigs[chainId];
         } else if (chainId == LOCAL_CHAIN_ID) {
@@ -61,22 +54,14 @@ contract HelperConfig is CodeConstants, Script {
         }
     }
 
-    function getMainnetEthConfig()
-        public
-        pure
-        returns (NetworkConfig memory mainnetNetworkConfig)
-    {
+    function getMainnetEthConfig() public pure returns (NetworkConfig memory mainnetNetworkConfig) {
         mainnetNetworkConfig = NetworkConfig({
             depositToken: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, // USDC
             ownerAdress: BASE_SEPOLIA_CONTRACT_CREATOR
         });
     }
 
-    function getBaseSepoliaEthConfig()
-        public
-        pure
-        returns (NetworkConfig memory sepoliaNetworkConfig)
-    {
+    function getBaseSepoliaEthConfig() public pure returns (NetworkConfig memory sepoliaNetworkConfig) {
         sepoliaNetworkConfig = NetworkConfig({
             depositToken: 0xE4aB69C077896252FAFBD49EFD26B5D171A32410, // USDC
             ownerAdress: BASE_SEPOLIA_CONTRACT_CREATOR
@@ -95,10 +80,7 @@ contract HelperConfig is CodeConstants, Script {
         MockUSDC usdc = new MockUSDC();
         vm.stopBroadcast();
 
-        localNetworkConfig = NetworkConfig({
-            depositToken: address(usdc),
-            ownerAdress: ANVIL_CONTRACT_CREATOR
-        });
+        localNetworkConfig = NetworkConfig({depositToken: address(usdc), ownerAdress: ANVIL_CONTRACT_CREATOR});
         vm.deal(localNetworkConfig.ownerAdress, 100 ether);
         return localNetworkConfig;
     }

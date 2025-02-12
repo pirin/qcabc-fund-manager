@@ -18,10 +18,7 @@ contract DeployFundManager is Script {
         ShareToken share = new ShareToken("QCABC FF2 Share", "QCABC-FF2");
 
         //Create a new FundManager
-        FundManager manager = new FundManager(
-            config.depositToken,
-            address(share)
-        );
+        FundManager manager = new FundManager(config.depositToken, address(share));
 
         //Set the fund manager in the share token
         share.setFundManager(address(manager));

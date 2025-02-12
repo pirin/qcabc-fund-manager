@@ -31,10 +31,7 @@ contract ShareToken is ERC20, Ownable {
      *
      * The Ownable constructor is called with the deployer’s address as the initial owner.
      */
-    constructor(
-        string memory name_,
-        string memory symbol_
-    ) ERC20(name_, symbol_) Ownable(msg.sender) {}
+    constructor(string memory name_, string memory symbol_) ERC20(name_, symbol_) Ownable(msg.sender) {}
 
     /**
      * @notice Set the fund manager address.
@@ -59,10 +56,7 @@ contract ShareToken is ERC20, Ownable {
      * @param account The account whose tokens are burned.
      * @param amount Amount to burn.
      */
-    function burnFrom(
-        address account,
-        uint256 amount
-    ) external onlyFundManager {
+    function burnFrom(address account, uint256 amount) external onlyFundManager {
         _burn(account, amount);
     }
 
