@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 // OpenZeppelin libraries.
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 
 // An interface for the share token (our custom ERC20 with mint/burn functions).
 interface IShareToken {
@@ -42,6 +43,8 @@ interface IShareToken {
 contract FundManager is Ownable {
     using SafeERC20 for IERC20;
 
+    string public constant VERSION = "0.2.1";
+
     /// @notice The ERC20 token accepted as deposits.
     IERC20 private s_depositToken;
 
@@ -60,8 +63,9 @@ contract FundManager is Ownable {
     /// @notice The timestamp when setPortfolioValue was last called.
     uint256 private s_lastPortfolioTimestamp;
 
-    /// @dev Cached share token decimals (should be 6).
     uint8 private immutable i_shareDecimals;
+    uint8 private immutable i_depositDecimals;
+
     uint256 private immutable i_initialSharePrice;
 
     /// @notice Mapping to store whitelisted addresses.
@@ -120,6 +124,12 @@ contract FundManager is Ownable {
         s_shareToken = IShareToken(_shareToken);
         i_shareDecimals = s_shareToken.decimals();
 
+        i_depositDecimals = IERC20Metadata(_depositToken).decimals();
+
+        if (i_depositDecimals != i_shareDecimals) {
+            revert FundManager__InvalidDepositTokenContract();
+        }
+
         i_initialSharePrice = 1 * 10 ** i_shareDecimals;
         s_sharePrice = i_initialSharePrice;
 
@@ -157,7 +167,7 @@ contract FundManager is Ownable {
      * @param amount The amount of deposit tokens to deposit.
      */
     function depositFunds(uint256 amount) external returns (uint256) {
-        if (amount == 0) {
+        if (amount < 1 * 10 ** i_depositDecimals) {
             revert FundManager__InvalidInvestmentAmount();
         }
 
@@ -286,8 +296,7 @@ contract FundManager is Ownable {
      */
     function setPortfolioValue(uint256 newPortfolioValue) external onlyWhitelistedOrOwner returns (uint256) {
         //Don't do anything if we have no shares
-        uint256 totalShares = s_shareToken.totalSupply();
-        if (totalShares == 0) {
+        if (s_shareToken.totalSupply() == 0) {
             revert FundManager__FundIsInactive();
         }
 
@@ -389,12 +398,28 @@ contract FundManager is Ownable {
     }
 
     /**
+     * @notice Get the number of shares owned by an address.
+     * @param depositor The address to check.
+     * @return The number of shares owned by the address.
+     */
+    function sharesOwned(address depositor) external view returns (uint256) {
+        return s_shareToken.balanceOf(depositor);
+    }
+
+    /**
+     * @notice Get the total number of shares outstanding.
+     */
+    function totalShares() external view returns (uint256) {
+        return s_shareToken.totalSupply();
+    }
+
+    /**
      * @notice Calculate the share price based on the current portfolio value and total shares outstanding.
      */
     function calculateSharePrice() private {
-        uint256 totalShares = s_shareToken.totalSupply();
-        if (totalShares > 0) {
-            s_sharePrice = (getFundValue() * (10 ** i_shareDecimals)) / totalShares;
+        uint256 sharesupply = s_shareToken.totalSupply();
+        if (sharesupply > 0) {
+            s_sharePrice = (getFundValue() * (10 ** i_shareDecimals)) / sharesupply;
         } else {
             s_sharePrice = i_initialSharePrice;
         }

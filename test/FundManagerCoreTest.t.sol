@@ -218,7 +218,10 @@ contract FundManagerCoreTest is FundManagerBase {
     // ==================== View Functions Tests ====================
     function testViewFunctions() public {
         vm.prank(INVESTOR_1);
-        fundManager.depositFunds(USDC_100);
+        uint256 sharesOwned = fundManager.depositFunds(USDC_100);
+
+        assertEq(fundManager.sharesOwned(INVESTOR_1), sharesOwned);
+        assertEq(fundManager.totalShares(), sharesOwned);
 
         uint256 preUpdateTimestamp = fundManager.getLastPortfolioTimestamp();
         assertEq(preUpdateTimestamp, 0);
