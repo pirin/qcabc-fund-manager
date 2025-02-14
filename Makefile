@@ -40,6 +40,9 @@ endif
 deploy:
 	@forge script script/DeployFundManager.s.sol:DeployFundManager $(NETWORK_ARGS)
 
+deployShareToken:
+	@forge script script/DeployMockUSDC.s.sol:DeployMockUSDC $(NETWORK_ARGS)
+
 deployMockUsdc:
 	@forge script script/DeployMockUSDC.s.sol:DeployMockUSDC $(NETWORK_ARGS)
 

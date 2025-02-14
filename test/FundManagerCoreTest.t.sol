@@ -32,10 +32,6 @@ contract FundManagerCoreTest is FundManagerBase {
         assertEq(depositToken.balanceOf(INVESTOR_3), INITIAL_INVESTOR_USDC_BALANCE);
     }
 
-    function testInitialTotalDepositedIsZero() external view {
-        assertEq(fundManager.lifetimeDeposits(), 0);
-    }
-
     function testInitialPortfolioValueIsZero() external view {
         assertEq(fundManager.portfolioValue(), 0);
     }
@@ -229,7 +225,6 @@ contract FundManagerCoreTest is FundManagerBase {
         vm.prank(FUND_OWNER);
         fundManager.setPortfolioValue(USDC_50);
 
-        assertEq(fundManager.lifetimeDeposits(), USDC_100);
         assertEq(fundManager.portfolioValue(), USDC_50);
         assertEq(fundManager.totalFundValue(), USDC_100 + USDC_50);
         assertEq(fundManager.sharePrice(), 1500000); //100 deposited + 50 increase in value = 150 total value / 100 shares = 1.5 USDC/share

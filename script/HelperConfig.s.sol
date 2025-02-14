@@ -20,6 +20,7 @@ contract HelperConfig is CodeConstants, Script {
     struct NetworkConfig {
         address depositToken;
         address ownerAdress;
+        address shareToken;
     }
 
     // ========== STATE VARIABLES ==========
@@ -54,14 +55,16 @@ contract HelperConfig is CodeConstants, Script {
 
     function getBaseMainnetEthConfig() public view returns (NetworkConfig memory mainnetNetworkConfig) {
         mainnetNetworkConfig = NetworkConfig({
-            depositToken: vm.envAddress("BASE_MAINNET_DEPOSIT_TOKEN"), // LINK
+            depositToken: vm.envAddress("BASE_MAINNET_DEPOSIT_TOKEN"),
+            shareToken: vm.envAddress("BASE_MAINNET_SHARE_TOKEN"),
             ownerAdress: vm.envAddress("BASE_MAINNET_OWNER_WALLET_ADDRESS")
         });
     }
 
     function getBaseSepoliaEthConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
         sepoliaNetworkConfig = NetworkConfig({
-            depositToken: vm.envAddress("BASE_SEPOLIA_DEPOSIT_TOKEN"), // LINK
+            depositToken: vm.envAddress("BASE_SEPOLIA_DEPOSIT_TOKEN"),
+            shareToken: vm.envAddress("BASE_SEPOLIA_SHARE_TOKEN"),
             ownerAdress: vm.envAddress("BASE_SEPOLIA_OWNER_WALLET_ADDRESS")
         });
     }
@@ -78,7 +81,11 @@ contract HelperConfig is CodeConstants, Script {
         MockUSDC usdc = new MockUSDC();
         vm.stopBroadcast();
 
-        localNetworkConfig = NetworkConfig({depositToken: address(usdc), ownerAdress: ANVIL_CONTRACT_CREATOR});
+        localNetworkConfig = NetworkConfig({
+            depositToken: address(usdc),
+            ownerAdress: ANVIL_CONTRACT_CREATOR,
+            shareToken: vm.envAddress("ANVIL_SHARE_TOKEN")
+        });
         vm.deal(localNetworkConfig.ownerAdress, 100 ether);
         return localNetworkConfig;
     }

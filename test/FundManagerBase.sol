@@ -76,7 +76,6 @@ contract FundManagerBase is Test, CodeConstants {
 
     function _deposit(address investor, uint256 amount) internal returns (uint256) {
         uint256 pdDepositUSDC = depositToken.balanceOf(investor);
-        uint256 pdTotalDeposited = fundManager.lifetimeDeposits();
         uint256 pdTreasuryUSDC = fundManager.treasuryBalance();
         uint256 pdInvestorShares = shareToken.balanceOf(investor);
         uint256 pdShareSupply = shareToken.totalSupply();
@@ -87,13 +86,11 @@ contract FundManagerBase is Test, CodeConstants {
         uint256 sharesMinted = fundManager.depositFunds(amount);
 
         uint256 adDepositUSDC = depositToken.balanceOf(investor);
-        uint256 adTotalDeposited = fundManager.lifetimeDeposits();
         uint256 adTreasuryUSDC = fundManager.treasuryBalance();
         uint256 adInvestorShares = shareToken.balanceOf(investor);
         uint256 adShareSupply = shareToken.totalSupply();
 
         assertEq(adDepositUSDC, pdDepositUSDC - amount); //investor has less USDC now
-        assertEq(adTotalDeposited, pdTotalDeposited + amount); // fund lifetime deposit has increased by the right amount
         assertEq(adTreasuryUSDC, pdTreasuryUSDC + amount); //balance in the fund has increased by the right amount
         assertEq(adInvestorShares, pdInvestorShares + sharesMinted); //investor got the right amount of shares
         assertEq(adShareSupply, pdShareSupply + sharesMinted); //total supply of shares was incread by minted amount
@@ -110,7 +107,6 @@ contract FundManagerBase is Test, CodeConstants {
 
     function _redeem(address investor, uint256 shares) internal returns (uint256) {
         uint256 pdDepositUSDC = depositToken.balanceOf(investor);
-        uint256 pdTotalDeposited = fundManager.lifetimeDeposits();
         uint256 pdTreasuryUSDC = fundManager.treasuryBalance();
         uint256 pdInvestorShares = shareToken.balanceOf(investor);
         uint256 pdShareSupply = shareToken.totalSupply();
@@ -121,13 +117,11 @@ contract FundManagerBase is Test, CodeConstants {
         uint256 proceeds = fundManager.redeemShares(shares);
 
         uint256 adDepositUSDC = depositToken.balanceOf(investor);
-        uint256 adTotalDeposited = fundManager.lifetimeDeposits();
         uint256 adTreasuryUSDC = fundManager.treasuryBalance();
         uint256 adInvestorShares = shareToken.balanceOf(investor);
         uint256 adShareSupply = shareToken.totalSupply();
 
         assertEq(adDepositUSDC, pdDepositUSDC + proceeds); //investor has more USDC now
-        assertEq(adTotalDeposited, pdTotalDeposited); // fund lifetime deposit has not changed
         assertEq(adTreasuryUSDC, pdTreasuryUSDC - proceeds); //balance in the fund has decreased by the right amount
         assertEq(adInvestorShares, pdInvestorShares - shares); //investor got less shares
         assertEq(adShareSupply, pdShareSupply - shares); //total supply of shares was decreased by burned shares

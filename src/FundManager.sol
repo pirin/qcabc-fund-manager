@@ -51,9 +51,6 @@ contract FundManager is Ownable {
     /// @notice The share token representing a user’s stake.
     IShareToken private s_shareToken;
 
-    /// @notice Total cumulative deposit tokens received (in deposit token smallest units).
-    uint256 private s_totalDeposited;
-
     /// @notice The current portfolio value (in deposit token smallest units).
     uint256 private s_portfolioValue;
 
@@ -173,7 +170,6 @@ contract FundManager is Ownable {
 
         // Transfer deposit tokens from the user.
         s_depositToken.safeTransferFrom(msg.sender, address(this), amount);
-        s_totalDeposited += amount;
 
         // Use the current sharePrice (if no shares exist yet, sharePrice is the default 1e18).
         uint256 currentSharePrice = s_sharePrice;
@@ -329,15 +325,6 @@ contract FundManager is Ownable {
     }
 
     // ========== VIEWS ==========
-    /**
-     * @notice Get the total amount of deposits received by the fund during its lifetime.
-     * This value increases with deposits but DOES NOT decrease with redemptions.
-     * @return The total amount of deposit tokens.
-     */
-    function lifetimeDeposits() external view returns (uint256) {
-        return s_totalDeposited;
-    }
-
     /**
      * @notice Get the current portfolio value.
      * @return The current portfolio value.
