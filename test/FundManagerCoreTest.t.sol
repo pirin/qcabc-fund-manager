@@ -72,7 +72,7 @@ contract FundManagerCoreTest is FundManagerBase {
         vm.prank(FUND_OWNER);
         vm.expectEmit(true, false, false, false);
         emit FundManager.AddressWhitelisted(INVESTOR_6);
-        fundManager.addToWhitelist(INVESTOR_6);
+        fundManager.addToPortfolioUpdatersWhitelist(INVESTOR_6);
 
         _adjustPortfolioValue(USDC_50, INVESTOR_6);
     }
@@ -83,14 +83,14 @@ contract FundManagerCoreTest is FundManagerBase {
         vm.prank(FUND_OWNER);
         vm.expectEmit(true, false, false, false);
         emit FundManager.AddressWhitelisted(INVESTOR_6);
-        fundManager.addToWhitelist(INVESTOR_6);
+        fundManager.addToPortfolioUpdatersWhitelist(INVESTOR_6);
 
         _adjustPortfolioValue(USDC_50, INVESTOR_6);
 
         vm.prank(FUND_OWNER);
         vm.expectEmit(true, false, false, false);
         emit FundManager.AddressRemovedFromWhitelist(INVESTOR_6);
-        fundManager.removeFromWhitelist(INVESTOR_6);
+        fundManager.removeFromPortfolioUpdatersWhitelist(INVESTOR_6);
 
         vm.prank(INVESTOR_6);
         vm.expectRevert(FundManager.FundManager__InvalidCaller.selector);
@@ -115,6 +115,47 @@ contract FundManagerCoreTest is FundManagerBase {
         vm.prank(INVESTOR_1);
         vm.expectRevert(FundManager.FundManager__InvalidInvestmentAmount.selector);
         fundManager.depositFunds(0);
+    }
+
+    function testWhitelistDepositors() public {
+        vm.prank(FUND_OWNER);
+
+        //By default anyone can deposit
+        assertEq(fundManager.allowedToDeposit(INVESTOR_1), true);
+
+        //Whitelist some other investors - this should enable whitelisting
+        vm.prank(FUND_OWNER);
+        vm.expectEmit(true, false, false, false);
+        emit FundManager.AddressWhitelisted(INVESTOR_2);
+        fundManager.addToDepositorWhitelist(INVESTOR_2);
+        assertEq(fundManager.allowedToDeposit(INVESTOR_2), true);
+
+        //Whitelist is enabled! Now INVESTOR_1 should no longer able to deposit
+        assertEq(fundManager.allowedToDeposit(INVESTOR_1), false);
+        vm.prank(INVESTOR_1);
+        vm.expectRevert(FundManager.FundManager__UnauthorizedDepositor.selector);
+        fundManager.depositFunds(USDC_10);
+
+        // Whitelist INVESTOR 1
+        vm.prank(FUND_OWNER);
+        fundManager.addToDepositorWhitelist(INVESTOR_1);
+        assertEq(fundManager.allowedToDeposit(INVESTOR_1), true);
+
+        // Now INVESTOR_1 should be able to deposit
+        vm.prank(INVESTOR_1);
+        fundManager.depositFunds(USDC_50);
+
+        // Unwhitelist INVESTOR 1
+        vm.prank(FUND_OWNER);
+        vm.expectEmit(true, false, false, false);
+        emit FundManager.AddressRemovedFromWhitelist(INVESTOR_1);
+        fundManager.removeFromDepositorWhitelist(INVESTOR_1);
+
+        // Now INVESTOR_1 should no longer be able to deposit
+        assertEq(fundManager.allowedToDeposit(INVESTOR_1), false);
+        vm.prank(INVESTOR_1);
+        vm.expectRevert(FundManager.FundManager__UnauthorizedDepositor.selector);
+        fundManager.depositFunds(10);
     }
 
     // ==================== Redeem Tests ====================

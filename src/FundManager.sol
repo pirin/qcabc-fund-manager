@@ -66,7 +66,13 @@ contract FundManager is Ownable {
     uint256 private immutable i_initialSharePrice;
 
     /// @notice Mapping to store whitelisted addresses.
-    mapping(address => bool) private s_whitelistedAddresses;
+    mapping(address => bool) private s_portfolioValueUpdaterswhitelist;
+
+    /// @notice Mapping to store addresses allowed to deposit.
+    mapping(address => bool) private s_depositWhitelist;
+
+    /// @notice Flag to indicate the deposit whitelist is enabled
+    uint8 private s_depositWhitelistEnabled = 0;
 
     /// @notice Enum to represent the redemption state.
     enum RedemptionState {
@@ -87,6 +93,7 @@ contract FundManager is Ownable {
     error FundManager__InvalidDepositTokenContract();
     error FundManager__FundIsInactive();
     error FundManager__InvalidCaller();
+    error FundManager__UnauthorizedDepositor();
     error FundManager__RedemptionsPaused();
 
     // ========== EVENTS ==========
@@ -137,8 +144,8 @@ contract FundManager is Ownable {
     /**
      * @notice Modifier to check if the caller is whitelisted (Owner is always whitelisted).
      */
-    modifier onlyWhitelistedOrOwner() {
-        if (!s_whitelistedAddresses[msg.sender] && msg.sender != owner()) {
+    modifier onlyAllowedToUpdatePortfolioValueOrOwner() {
+        if (!s_portfolioValueUpdaterswhitelist[msg.sender] && msg.sender != owner()) {
             revert FundManager__InvalidCaller();
         }
         _;
@@ -154,6 +161,16 @@ contract FundManager is Ownable {
         _;
     }
 
+    /**
+     * @notice Modifier to check if the caller is allowed to deposit.
+     */
+    modifier onlyIfAllowedToDeposit() {
+        if (!allowedToDeposit(msg.sender)) {
+            revert FundManager__UnauthorizedDepositor();
+        }
+        _;
+    }
+
     // ========== USER FUNCTIONS ==========
 
     /**
@@ -163,7 +180,7 @@ contract FundManager is Ownable {
      *
      * @param amount The amount of deposit tokens to deposit.
      */
-    function depositFunds(uint256 amount) external returns (uint256) {
+    function depositFunds(uint256 amount) external onlyIfAllowedToDeposit returns (uint256) {
         if (amount < 1 * 10 ** i_depositDecimals) {
             revert FundManager__InvalidInvestmentAmount();
         }
@@ -263,8 +280,8 @@ contract FundManager is Ownable {
      * @notice Add an address to the whitelist.
      * @param addr The address to whitelist.
      */
-    function addToWhitelist(address addr) external onlyOwner {
-        s_whitelistedAddresses[addr] = true;
+    function addToPortfolioUpdatersWhitelist(address addr) external onlyOwner {
+        s_portfolioValueUpdaterswhitelist[addr] = true;
         emit AddressWhitelisted(addr);
     }
 
@@ -272,8 +289,8 @@ contract FundManager is Ownable {
      * @notice Remove an address from the whitelist.
      * @param addr The address to remove from the whitelist.
      */
-    function removeFromWhitelist(address addr) external onlyOwner {
-        s_whitelistedAddresses[addr] = false;
+    function removeFromPortfolioUpdatersWhitelist(address addr) external onlyOwner {
+        s_portfolioValueUpdaterswhitelist[addr] = false;
         emit AddressRemovedFromWhitelist(addr);
     }
 
@@ -290,7 +307,11 @@ contract FundManager is Ownable {
      *
      * @param newPortfolioValue The current portfolio value (in deposit token smallest units).
      */
-    function setPortfolioValue(uint256 newPortfolioValue) external onlyWhitelistedOrOwner returns (uint256) {
+    function setPortfolioValue(uint256 newPortfolioValue)
+        external
+        onlyAllowedToUpdatePortfolioValueOrOwner
+        returns (uint256)
+    {
         //Don't do anything if we have no shares
         if (s_shareToken.totalSupply() == 0) {
             revert FundManager__FundIsInactive();
@@ -322,6 +343,43 @@ contract FundManager is Ownable {
     function resumeRedemptions() external onlyOwner {
         s_redemptionState = RedemptionState.ALLOWED;
         emit RedemptionsResumed();
+    }
+
+    /**
+     * @notice Add an address to the deposit whitelist.
+     * adding the first address to the whitelist will enable the whitelist functionality
+     * @param addr The address to whitelist.
+     */
+    function addToDepositorWhitelist(address addr) external onlyOwner {
+        s_depositWhitelist[addr] = true;
+
+        if (s_depositWhitelistEnabled == 0) {
+            s_depositWhitelistEnabled = 1;
+        }
+
+        emit AddressWhitelisted(addr);
+    }
+
+    /**
+     * @notice Remove an address from the deposit whitelist.
+     * @param addr The address to remove from the whitelist.
+     */
+    function removeFromDepositorWhitelist(address addr) external onlyOwner {
+        s_depositWhitelist[addr] = false;
+        emit AddressRemovedFromWhitelist(addr);
+    }
+    // ========== INTERNAL FUNCTIONS ==========
+    /**
+     * @notice Calculate the share price based on the current portfolio value and total shares outstanding.
+     */
+
+    function calculateSharePrice() private {
+        uint256 sharesupply = s_shareToken.totalSupply();
+        if (sharesupply > 0) {
+            s_sharePrice = (totalFundValue() * (10 ** i_shareDecimals)) / sharesupply;
+        } else {
+            s_sharePrice = i_initialSharePrice;
+        }
     }
 
     // ========== VIEWS ==========
@@ -402,14 +460,15 @@ contract FundManager is Ownable {
     }
 
     /**
-     * @notice Calculate the share price based on the current portfolio value and total shares outstanding.
+     * @notice Check if an address is allowed to deposit.
+     * @param addr The address to check.
+     * @return True if the address is allowed to deposit, false otherwise.
      */
-    function calculateSharePrice() private {
-        uint256 sharesupply = s_shareToken.totalSupply();
-        if (sharesupply > 0) {
-            s_sharePrice = (totalFundValue() * (10 ** i_shareDecimals)) / sharesupply;
-        } else {
-            s_sharePrice = i_initialSharePrice;
+    function allowedToDeposit(address addr) public view returns (bool) {
+        if (s_depositWhitelistEnabled == 0) {
+            return true;
         }
+
+        return s_depositWhitelist[addr];
     }
 }
