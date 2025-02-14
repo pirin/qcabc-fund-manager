@@ -43,7 +43,7 @@ interface IShareToken {
 contract FundManager is Ownable {
     using SafeERC20 for IERC20;
 
-    string public constant VERSION = "0.2.1";
+    string public constant VERSION = "0.2.3";
 
     /// @notice The ERC20 token accepted as deposits.
     IERC20 private s_depositToken;
@@ -330,10 +330,11 @@ contract FundManager is Ownable {
 
     // ========== VIEWS ==========
     /**
-     * @notice Get the total amount of deposit tokens received by the fund.
+     * @notice Get the total amount of deposits received by the fund during its lifetime.
+     * This value increases with deposits but DOES NOT decrease with redemptions.
      * @return The total amount of deposit tokens.
      */
-    function getTotalDeposited() external view returns (uint256) {
+    function lifetimeDeposits() external view returns (uint256) {
         return s_totalDeposited;
     }
 
@@ -341,19 +342,19 @@ contract FundManager is Ownable {
      * @notice Get the current portfolio value.
      * @return The current portfolio value.
      */
-    function getPortfolioValue() public view returns (uint256) {
+    function portfolioValue() public view returns (uint256) {
         return s_portfolioValue;
     }
 
-    function getFundValue() public view returns (uint256) {
-        return getTreasuryBalance() + getPortfolioValue();
+    function totalFundValue() public view returns (uint256) {
+        return treasuryBalance() + portfolioValue();
     }
 
     /**
      * @notice Get the current share price.
      * @return The current share price.
      */
-    function getSharePrice() external view returns (uint256) {
+    function sharePrice() external view returns (uint256) {
         return s_sharePrice;
     }
 
@@ -361,7 +362,7 @@ contract FundManager is Ownable {
      * @notice Get the timestamp of the last portfolio value update.
      * @return The timestamp of the last portfolio value update.
      */
-    function getLastPortfolioTimestamp() external view returns (uint256) {
+    function lastPortfolioValueUpdated() external view returns (uint256) {
         return s_lastPortfolioTimestamp;
     }
 
@@ -369,7 +370,7 @@ contract FundManager is Ownable {
      * @notice Get the current balance of deposit tokens held by the fund.
      * @return The current balance of deposit tokens.
      */
-    function getTreasuryBalance() public view returns (uint256) {
+    function treasuryBalance() public view returns (uint256) {
         return s_depositToken.balanceOf(address(this));
     }
 
@@ -377,7 +378,7 @@ contract FundManager is Ownable {
      * @notice Get the address of the deposit token.
      * @return The address of the deposit token.
      */
-    function getDepositToken() external view returns (address) {
+    function depositToken() external view returns (address) {
         return address(s_depositToken);
     }
 
@@ -385,7 +386,7 @@ contract FundManager is Ownable {
      * @notice Get the address of the share token.
      * @return The address of the share token.
      */
-    function getShareToken() external view returns (address) {
+    function shareToken() external view returns (address) {
         return address(s_shareToken);
     }
 
@@ -419,7 +420,7 @@ contract FundManager is Ownable {
     function calculateSharePrice() private {
         uint256 sharesupply = s_shareToken.totalSupply();
         if (sharesupply > 0) {
-            s_sharePrice = (getFundValue() * (10 ** i_shareDecimals)) / sharesupply;
+            s_sharePrice = (totalFundValue() * (10 ** i_shareDecimals)) / sharesupply;
         } else {
             s_sharePrice = i_initialSharePrice;
         }

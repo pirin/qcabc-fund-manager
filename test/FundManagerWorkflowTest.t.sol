@@ -28,10 +28,10 @@ contract FundManagerWorkflowTest is FundManagerBase {
         assertEq(sharesMinted2, SHARES_50);
 
         //check balances
-        assertEq(fundManager.getTreasuryBalance(), USDC_50 + USDC_100);
+        assertEq(fundManager.treasuryBalance(), USDC_50 + USDC_100);
         assertEq(shareToken.totalSupply(), sharesMinted1 + sharesMinted2);
-        assertEq(fundManager.getSharePrice(), 1 * 10 ** shareToken.decimals());
-        assertEq(fundManager.getFundValue(), USDC_50 + USDC_100);
+        assertEq(fundManager.sharePrice(), 1 * 10 ** shareToken.decimals());
+        assertEq(fundManager.totalFundValue(), USDC_50 + USDC_100);
 
         //_printFundInfo();
 
@@ -39,7 +39,7 @@ contract FundManagerWorkflowTest is FundManagerBase {
         _invest(USDC_150); //portfolio value is automatically adjusted for
 
         //fund increased in value by 50 USDC
-        _adjustPortfolioValue(fundManager.getPortfolioValue() + USDC_50, FUND_OWNER); //potfolio is now worth 50 USDC above the cost basis
+        _adjustPortfolioValue(fundManager.portfolioValue() + USDC_50, FUND_OWNER); //potfolio is now worth 50 USDC above the cost basis
 
         uint256 sharesMinted3 = _deposit(INVESTOR_3, USDC_100);
         assertEq(sharesMinted3, 75000018);
@@ -48,7 +48,7 @@ contract FundManagerWorkflowTest is FundManagerBase {
         assertEq(sharesMinted4, 75000018);
 
         //fund decreased in value by 150 USDC
-        _adjustPortfolioValue(fundManager.getPortfolioValue() - USDC_150, FUND_OWNER); //potfolio is now worth 50 USDC below the cost basis
+        _adjustPortfolioValue(fundManager.portfolioValue() - USDC_150, FUND_OWNER); //potfolio is now worth 50 USDC below the cost basis
 
         uint256 sharesMinted5 = _deposit(INVESTOR_5, USDC_100);
         assertEq(sharesMinted5, 120000048);
@@ -57,7 +57,7 @@ contract FundManagerWorkflowTest is FundManagerBase {
         assertEq(redemption1, 83333300); //gets 83.33 USDC back
 
         //fund increased in value by 50 USDC
-        _adjustPortfolioValue(fundManager.getPortfolioValue() + USDC_200, FUND_OWNER); //potfolio is now worth 200 USDC above the cost basis
+        _adjustPortfolioValue(fundManager.portfolioValue() + USDC_200, FUND_OWNER); //potfolio is now worth 200 USDC above the cost basis
 
         uint256 redemption2 = _redeem(INVESTOR_2, sharesMinted2); //share price is 1.46
         assertEq(redemption2, 72916650); //user gets 72.91 USDC back

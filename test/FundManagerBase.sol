@@ -76,8 +76,8 @@ contract FundManagerBase is Test, CodeConstants {
 
     function _deposit(address investor, uint256 amount) internal returns (uint256) {
         uint256 pdDepositUSDC = depositToken.balanceOf(investor);
-        uint256 pdTotalDeposited = fundManager.getTotalDeposited();
-        uint256 pdTreasuryUSDC = fundManager.getTreasuryBalance();
+        uint256 pdTotalDeposited = fundManager.lifetimeDeposits();
+        uint256 pdTreasuryUSDC = fundManager.treasuryBalance();
         uint256 pdInvestorShares = shareToken.balanceOf(investor);
         uint256 pdShareSupply = shareToken.totalSupply();
 
@@ -87,8 +87,8 @@ contract FundManagerBase is Test, CodeConstants {
         uint256 sharesMinted = fundManager.depositFunds(amount);
 
         uint256 adDepositUSDC = depositToken.balanceOf(investor);
-        uint256 adTotalDeposited = fundManager.getTotalDeposited();
-        uint256 adTreasuryUSDC = fundManager.getTreasuryBalance();
+        uint256 adTotalDeposited = fundManager.lifetimeDeposits();
+        uint256 adTreasuryUSDC = fundManager.treasuryBalance();
         uint256 adInvestorShares = shareToken.balanceOf(investor);
         uint256 adShareSupply = shareToken.totalSupply();
 
@@ -110,8 +110,8 @@ contract FundManagerBase is Test, CodeConstants {
 
     function _redeem(address investor, uint256 shares) internal returns (uint256) {
         uint256 pdDepositUSDC = depositToken.balanceOf(investor);
-        uint256 pdTotalDeposited = fundManager.getTotalDeposited();
-        uint256 pdTreasuryUSDC = fundManager.getTreasuryBalance();
+        uint256 pdTotalDeposited = fundManager.lifetimeDeposits();
+        uint256 pdTreasuryUSDC = fundManager.treasuryBalance();
         uint256 pdInvestorShares = shareToken.balanceOf(investor);
         uint256 pdShareSupply = shareToken.totalSupply();
 
@@ -121,8 +121,8 @@ contract FundManagerBase is Test, CodeConstants {
         uint256 proceeds = fundManager.redeemShares(shares);
 
         uint256 adDepositUSDC = depositToken.balanceOf(investor);
-        uint256 adTotalDeposited = fundManager.getTotalDeposited();
-        uint256 adTreasuryUSDC = fundManager.getTreasuryBalance();
+        uint256 adTotalDeposited = fundManager.lifetimeDeposits();
+        uint256 adTreasuryUSDC = fundManager.treasuryBalance();
         uint256 adInvestorShares = shareToken.balanceOf(investor);
         uint256 adShareSupply = shareToken.totalSupply();
 
@@ -147,13 +147,13 @@ contract FundManagerBase is Test, CodeConstants {
         emit FundManager.PortfolioUpdated(newPortfolioValue, 0, 0);
         uint256 actualPortfolioValue = fundManager.setPortfolioValue(newPortfolioValue);
 
-        assertEq(newPortfolioValue, fundManager.getPortfolioValue());
+        assertEq(newPortfolioValue, fundManager.portfolioValue());
 
         return actualPortfolioValue;
     }
 
     function _invest(uint256 amount) internal {
-        uint256 pdTreasuryUSDC = fundManager.getTreasuryBalance();
+        uint256 pdTreasuryUSDC = fundManager.treasuryBalance();
         uint256 pdPortfolioWalletBalanceUSDC = depositToken.balanceOf(PORTFOLIO_WALLET);
 
         vm.prank(FUND_OWNER);
@@ -163,11 +163,11 @@ contract FundManagerBase is Test, CodeConstants {
 
         //as treasury funds are decreased, portfolio value is increased by the same amount
         //such that the total fund value remains the same
-        uint256 currentPortfolioValue = fundManager.getPortfolioValue();
+        uint256 currentPortfolioValue = fundManager.portfolioValue();
         vm.prank(FUND_OWNER);
         fundManager.setPortfolioValue(currentPortfolioValue + amount);
 
-        uint256 adTreasuryUSDC = fundManager.getTreasuryBalance();
+        uint256 adTreasuryUSDC = fundManager.treasuryBalance();
         uint256 adPortfolioWalletBalanceUSDC = depositToken.balanceOf(PORTFOLIO_WALLET);
 
         assertEq(adTreasuryUSDC, pdTreasuryUSDC - amount); //balance in the fund has decreased by the right amount
@@ -178,10 +178,10 @@ contract FundManagerBase is Test, CodeConstants {
 
     function _printFundInfo() internal view {
         console.log("\nFund Info:");
-        console.log("   Total Fund Value:  ", TestHelpers.toString6(fundManager.getFundValue()), " USDC");
-        console.log("   Treasury Balance:  ", TestHelpers.toString6(fundManager.getTreasuryBalance()), "USDC");
-        console.log("   Portfolio Value:   ", TestHelpers.toString6(fundManager.getPortfolioValue()), " USDC");
-        console.log("   Share Price:       ", TestHelpers.toString6(fundManager.getSharePrice()), " USDC");
+        console.log("   Total Fund Value:  ", TestHelpers.toString6(fundManager.totalFundValue()), " USDC");
+        console.log("   Treasury Balance:  ", TestHelpers.toString6(fundManager.treasuryBalance()), "USDC");
+        console.log("   Portfolio Value:   ", TestHelpers.toString6(fundManager.portfolioValue()), " USDC");
+        console.log("   Share Price:       ", TestHelpers.toString6(fundManager.sharePrice()), " USDC");
         console.log("   Share Total Supply:", TestHelpers.toString6(shareToken.totalSupply()), " Shares");
 
         //print incvestor balance and shares owned on the same line

@@ -33,23 +33,23 @@ contract FundManagerCoreTest is FundManagerBase {
     }
 
     function testInitialTotalDepositedIsZero() external view {
-        assertEq(fundManager.getTotalDeposited(), 0);
+        assertEq(fundManager.lifetimeDeposits(), 0);
     }
 
     function testInitialPortfolioValueIsZero() external view {
-        assertEq(fundManager.getPortfolioValue(), 0);
+        assertEq(fundManager.portfolioValue(), 0);
     }
 
     function testInitialSharePriceIsZero() external view {
-        assertEq(fundManager.getSharePrice(), 1 * 10 ** shareToken.decimals());
+        assertEq(fundManager.sharePrice(), 1 * 10 ** shareToken.decimals());
     }
 
     function testInitialLastPortfolioTimestampIsZero() external view {
-        assertEq(fundManager.getLastPortfolioTimestamp(), 0);
+        assertEq(fundManager.lastPortfolioValueUpdated(), 0);
     }
 
     function testInitialTreasuryBalanceIsZero() external view {
-        assertEq(fundManager.getTreasuryBalance(), 0);
+        assertEq(fundManager.treasuryBalance(), 0);
     }
 
     // ==================== Update Portfolio Value Tests ====================
@@ -223,21 +223,21 @@ contract FundManagerCoreTest is FundManagerBase {
         assertEq(fundManager.sharesOwned(INVESTOR_1), sharesOwned);
         assertEq(fundManager.totalShares(), sharesOwned);
 
-        uint256 preUpdateTimestamp = fundManager.getLastPortfolioTimestamp();
+        uint256 preUpdateTimestamp = fundManager.lastPortfolioValueUpdated();
         assertEq(preUpdateTimestamp, 0);
 
         vm.prank(FUND_OWNER);
         fundManager.setPortfolioValue(USDC_50);
 
-        assertEq(fundManager.getTotalDeposited(), USDC_100);
-        assertEq(fundManager.getPortfolioValue(), USDC_50);
-        assertEq(fundManager.getFundValue(), USDC_100 + USDC_50);
-        assertEq(fundManager.getSharePrice(), 1500000); //100 deposited + 50 increase in value = 150 total value / 100 shares = 1.5 USDC/share
+        assertEq(fundManager.lifetimeDeposits(), USDC_100);
+        assertEq(fundManager.portfolioValue(), USDC_50);
+        assertEq(fundManager.totalFundValue(), USDC_100 + USDC_50);
+        assertEq(fundManager.sharePrice(), 1500000); //100 deposited + 50 increase in value = 150 total value / 100 shares = 1.5 USDC/share
 
-        assertGt(fundManager.getLastPortfolioTimestamp(), preUpdateTimestamp);
+        assertGt(fundManager.lastPortfolioValueUpdated(), preUpdateTimestamp);
 
-        assertEq(fundManager.getTreasuryBalance(), USDC_100);
-        assertEq(fundManager.getDepositToken(), address(depositToken));
-        assertEq(fundManager.getShareToken(), address(shareToken));
+        assertEq(fundManager.treasuryBalance(), USDC_100);
+        assertEq(fundManager.depositToken(), address(depositToken));
+        assertEq(fundManager.shareToken(), address(shareToken));
     }
 }
