@@ -3,6 +3,7 @@ pragma solidity ^0.8.26;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol";
 
 error ShareToken__NotFundManager();
 
@@ -11,7 +12,9 @@ error ShareToken__NotFundManager();
  * @dev An ERC20 token representing shares in the fund. It has 6 decimals.
  * The fund manager (settable by the owner) is allowed to mint and burn tokens.
  */
-contract ShareToken is ERC20, Ownable {
+contract ShareToken is ERC20Pausable, Ownable {
+    string public constant VERSION = "0.1.1";
+
     /// @notice The address allowed to mint and burn share tokens (i.e. the FundManager)
     address private s_fundManager;
 
@@ -58,6 +61,16 @@ contract ShareToken is ERC20, Ownable {
      */
     function burnFrom(address account, uint256 amount) external onlyFundManager {
         _burn(account, amount);
+    }
+
+    // Owner can pause all token transfers
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    // Owner can unpause all token transfers
+    function unpause() public onlyOwner {
+        _unpause();
     }
 
     /**

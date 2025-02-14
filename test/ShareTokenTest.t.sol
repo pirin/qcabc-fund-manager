@@ -78,4 +78,22 @@ contract ShareTokenTest is Test {
         vm.expectRevert(ShareToken__NotFundManager.selector);
         shareToken.burnFrom(user, 500);
     }
+
+    function testPauseUnpause() public {
+        vm.prank(fundManager);
+        shareToken.mint(user, 1000);
+
+        vm.prank(owner);
+        shareToken.pause();
+
+        vm.prank(user);
+        vm.expectRevert(Pausable.EnforcedPause.selector);
+        shareToken.transfer(owner, 500);
+
+        vm.prank(owner);
+        shareToken.unpause();
+
+        vm.prank(user);
+        shareToken.transfer(owner, 500);
+    }
 }
