@@ -55,14 +55,14 @@ contract HelperConfig is CodeConstants, Script {
     function getBaseMainnetEthConfig() public view returns (NetworkConfig memory mainnetNetworkConfig) {
         mainnetNetworkConfig = NetworkConfig({
             depositToken: vm.envAddress("BASE_MAINNET_DEPOSIT_TOKEN"), // LINK
-            ownerAdress: vm.envAddress("BASE_MAINNET_OWNER_WALLET_ADDR")
+            ownerAdress: vm.envAddress("BASE_MAINNET_OWNER_WALLET_ADDRESS")
         });
     }
 
     function getBaseSepoliaEthConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
         sepoliaNetworkConfig = NetworkConfig({
             depositToken: vm.envAddress("BASE_SEPOLIA_DEPOSIT_TOKEN"), // LINK
-            ownerAdress: vm.envAddress("BASE_SEPOLIA_OWNER_WALLET_ADDR")
+            ownerAdress: vm.envAddress("BASE_SEPOLIA_OWNER_WALLET_ADDRESS")
         });
     }
 
