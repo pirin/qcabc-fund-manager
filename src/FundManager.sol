@@ -43,7 +43,7 @@ interface IShareToken {
 contract FundManager is Ownable {
     using SafeERC20 for IERC20;
 
-    string public constant VERSION = "0.2.3";
+    string public constant VERSION = "0.3.1";
 
     /// @notice The ERC20 token accepted as deposits.
     IERC20 private s_depositToken;
