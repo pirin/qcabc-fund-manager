@@ -1,6 +1,6 @@
 -include .env
 
-.PHONY: all test clean deploy fund help install snapshot format anvil 
+.PHONY: all test clean deploy fund help install snapshot format anvil deployFundManager deployShareToken deployMockUsdc generate-abis
 
 help:
 	@echo "Usage:"
@@ -31,20 +31,28 @@ format :; forge fmt
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
+
+#make ARGS="--network sepolia" deploy;     
 NETWORK_ARGS := --rpc-url $(ANVIL_RPC_URL) --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 ifeq ($(findstring --network sepolia,$(ARGS)),--network sepolia)
 	NETWORK_ARGS := --rpc-url $(BASE_SEPOLIA_RPC_URL) --account $(BASE_SEPOLIA_OWNER_WALLET_NAME) --broadcast --verify --etherscan-api-key $(BASESCAN_API_KEY) -vvvvv
 endif
 
-deploy:
+deploy: deployFundManager generate-abis
+
+deployFundManager:
+	@echo "Deploying FundManager..."
 	@forge script script/DeployFundManager.s.sol:DeployFundManager $(NETWORK_ARGS)
 
 deployShareToken:
+	@echo "Deploying ShareToken Manager..."
 	@forge script script/DeployMockUSDC.s.sol:DeployMockUSDC $(NETWORK_ARGS)
 
 deployMockUsdc:
+	@echo Deploying MockUSDC...
 	@forge script script/DeployMockUSDC.s.sol:DeployMockUSDC $(NETWORK_ARGS)
 
-
-
+#===============================================================================
+generate-abis:
+	node scripts-js/generateTsAbis.js $(NEXTJS_TARGET_DIR)

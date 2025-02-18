@@ -1,0 +1,16 @@
+{
+  "name": "nextjs-generator",
+  "version": "0.0.1",
+  "type": "module",
+  "dependencies": {
+    "dotenv": "~16.3.1",
+    "envfile": "~6.18.0",
+    "ethers": "~5.7.1",
+    "prettier": "~2.8.8",
+    "qrcode": "~1.5.3",
+    "toml": "~3.0.0"
+  },
+  "devDependencies": {
+    "shx": "^0.3.4"
+  }
+}
