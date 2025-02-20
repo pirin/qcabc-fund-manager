@@ -13,7 +13,7 @@ error ShareToken__NotFundManager();
  * The fund manager (settable by the owner) is allowed to mint and burn tokens.
  */
 contract ShareToken is ERC20Pausable, Ownable {
-    string public constant VERSION = "0.1.1";
+    string public constant VERSION = "0.1.2";
 
     /// @notice The address allowed to mint and burn share tokens (i.e. the FundManager)
     address private s_fundManager;
