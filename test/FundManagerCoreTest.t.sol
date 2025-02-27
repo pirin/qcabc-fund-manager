@@ -223,6 +223,18 @@ contract FundManagerCoreTest is FundManagerBase {
         fundManager.redeemShares(mintedShares);
     }
 
+    function testRedeemSharesRevertsIfPortfolioIsStale() public {
+        uint256 mintedShares = _deposit(INVESTOR_1, USDC_200);
+
+        //Move the chain forward by 3 days
+        vm.warp(3 days);
+        console.log("Last Updated", fundManager.lastPortfolioValueUpdated(), " Block Timestamp", block.timestamp);
+
+        vm.prank(INVESTOR_1);
+        vm.expectRevert(FundManager.FundManager__PortfoliValueIsStale.selector);
+        fundManager.redeemShares(mintedShares);
+    }
+
     // ==================== Invest Tests ====================
     function testInvestFundsRevertNonOwner() public {
         vm.prank(INVESTOR_1);

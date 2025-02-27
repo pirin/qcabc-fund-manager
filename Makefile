@@ -31,26 +31,37 @@ format :; forge fmt
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
-
-#make ARGS="--network sepolia" deploy;     
+#make ARGS="--network sepolia" deploy
 NETWORK_ARGS := --rpc-url $(ANVIL_RPC_URL) --private-key $(DEFAULT_ANVIL_KEY) --broadcast
 
 ifeq ($(findstring --network sepolia,$(ARGS)),--network sepolia)
 	NETWORK_ARGS := --rpc-url $(BASE_SEPOLIA_RPC_URL) --account $(BASE_SEPOLIA_OWNER_WALLET_NAME) --broadcast --verify --etherscan-api-key $(BASESCAN_API_KEY) -vvvvv
 endif
 
-deploy: deployFundManager generate-abis
+#make ARGS="--network base" deploy
+ifeq ($(findstring --network base,$(ARGS)),--network base)
+	NETWORK_ARGS := --rpc-url $(BASE_MAINNET_RPC_URL) --account $(BASE_MAINNET_OWNER_WALLET_NAME) --broadcast --verify --etherscan-api-key $(BASE_MAINNET_API_KEY) -vvvvv --verifier-url $(BASE_MAINNET_RPC_URL)/verify/etherscan
+endif
+
+#make ARGS="--network baseclone" deploy
+ifeq ($(findstring --network baseclone,$(ARGS)),--network baseclone)
+	NETWORK_ARGS := --rpc-url $(BASE_MAINNET_CLONE_RPC_URL) --account $(BASE_MAINNET_CLONE_OWNER_WALLET_NAME) --broadcast --slow --verify --etherscan-api-key $(BASE_MAINNET_CLONE_API_KEY) -vvvvv --verifier-url $(BASE_MAINNET_CLONE_VERIFICATION_URL)
+endif
+
+deploy: deployFundManager
+
+deploy-genabi: deployFundManager generate-abis
 
 deployFundManager:
-	@echo "Deploying FundManager..."
+	@echo "Deploying FundManager Contract..."
 	@forge script script/DeployFundManager.s.sol:DeployFundManager $(NETWORK_ARGS)
 
 deployShareToken:
-	@echo "Deploying ShareToken Manager..."
-	@forge script script/DeployMockUSDC.s.sol:DeployMockUSDC $(NETWORK_ARGS)
+	@echo "Deploying ShareToken Contract..."
+	@forge script script/DeployShareToken.s.sol:DeployShareToken $(NETWORK_ARGS)
 
 deployMockUsdc:
-	@echo Deploying MockUSDC...
+	@echo Deploying MockUSDC Contract...
 	@forge script script/DeployMockUSDC.s.sol:DeployMockUSDC $(NETWORK_ARGS)
 
 #===============================================================================

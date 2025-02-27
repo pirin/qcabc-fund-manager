@@ -5,6 +5,7 @@ pragma solidity ^0.8.26;
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 // An interface for the share token (our custom ERC20 with mint/burn functions).
 interface IShareToken {
@@ -39,11 +40,17 @@ interface IShareToken {
  * On redemption, the user receives:
  *
  *     depositValue = (shareAmount * sharePrice) / (10^(shareDecimals)).
+ *
+ * TODO: Implement the following:
+ * - Refuse redemptions or deposits if portfolio value is stale.
  */
-contract FundManager is Ownable {
+contract FundManager is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    string public constant VERSION = "0.3.2";
+    string public constant VERSION = "0.3.3";
+
+    /// @dev The maximum time since the last portfolio value update before redemptions are paused.
+    uint256 constant MAX_STALE_PORTFOLIO_VALUE = 2 days;
 
     /// @notice The ERC20 token accepted as deposits.
     IERC20 private s_depositToken;
@@ -95,6 +102,7 @@ contract FundManager is Ownable {
     error FundManager__InvalidCaller();
     error FundManager__UnauthorizedDepositor();
     error FundManager__RedemptionsPaused();
+    error FundManager__PortfoliValueIsStale();
 
     // ========== EVENTS ==========
 
@@ -171,6 +179,16 @@ contract FundManager is Ownable {
         _;
     }
 
+    /**
+     * @notice Modifier to check if the portfolio value is not stale.
+     */
+    modifier portfolioValueNotStale() {
+        if (block.timestamp > s_lastPortfolioTimestamp + MAX_STALE_PORTFOLIO_VALUE) {
+            revert FundManager__PortfoliValueIsStale();
+        }
+        _;
+    }
+
     // ========== USER FUNCTIONS ==========
 
     /**
@@ -180,7 +198,7 @@ contract FundManager is Ownable {
      *
      * @param amount The amount of deposit tokens to deposit.
      */
-    function depositFunds(uint256 amount) external onlyIfAllowedToDeposit returns (uint256) {
+    function depositFunds(uint256 amount) external onlyIfAllowedToDeposit nonReentrant returns (uint256) {
         if (amount < 1 * 10 ** i_depositDecimals) {
             revert FundManager__InvalidInvestmentAmount();
         }
@@ -212,7 +230,13 @@ contract FundManager is Ownable {
      *
      * @param shareAmount The amount of share tokens to redeem.
      */
-    function redeemShares(uint256 shareAmount) external whenRedemptionsAllowed returns (uint256) {
+    function redeemShares(uint256 shareAmount)
+        external
+        whenRedemptionsAllowed
+        nonReentrant
+        portfolioValueNotStale
+        returns (uint256)
+    {
         if (shareAmount == 0) {
             revert FundManager__InvalidShareAmount();
         }

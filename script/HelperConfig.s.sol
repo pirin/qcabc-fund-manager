@@ -9,6 +9,7 @@ abstract contract CodeConstants {
 
     uint256 public constant BASE_SEPOLIA_CHAIN_ID = 84532;
     uint256 public constant BASE_MAINNET_CHAIN_ID = 8453;
+    uint256 public constant BASE_MAINNET_CLONE_CHAIN_ID = 845399;
     uint256 public constant LOCAL_CHAIN_ID = 31337;
 }
 
@@ -21,6 +22,7 @@ contract HelperConfig is CodeConstants, Script {
         address depositToken;
         address ownerAdress;
         address shareToken;
+        string name;
     }
 
     // ========== STATE VARIABLES ==========
@@ -30,8 +32,9 @@ contract HelperConfig is CodeConstants, Script {
 
     // ========== CONSTRUCTOR ==========
     constructor() {
-        networkConfigs[BASE_SEPOLIA_CHAIN_ID] = getBaseSepoliaEthConfig();
-        networkConfigs[BASE_MAINNET_CHAIN_ID] = getBaseMainnetEthConfig();
+        networkConfigs[BASE_SEPOLIA_CHAIN_ID] = getBaseSepoliaConfig();
+        networkConfigs[BASE_MAINNET_CHAIN_ID] = getBaseMainnetConfig();
+        networkConfigs[BASE_MAINNET_CLONE_CHAIN_ID] = getBaseMainnetCloneConfig();
         // Note: We skip doing the local config
     }
 
@@ -53,19 +56,30 @@ contract HelperConfig is CodeConstants, Script {
         }
     }
 
-    function getBaseMainnetEthConfig() public view returns (NetworkConfig memory mainnetNetworkConfig) {
+    function getBaseMainnetConfig() public view returns (NetworkConfig memory mainnetNetworkConfig) {
         mainnetNetworkConfig = NetworkConfig({
             depositToken: vm.envAddress("BASE_MAINNET_DEPOSIT_TOKEN"),
             shareToken: vm.envAddress("BASE_MAINNET_SHARE_TOKEN"),
-            ownerAdress: vm.envAddress("BASE_MAINNET_OWNER_WALLET_ADDRESS")
+            ownerAdress: vm.envAddress("BASE_MAINNET_OWNER_WALLET_ADDRESS"),
+            name: "BASE Mainnet"
         });
     }
 
-    function getBaseSepoliaEthConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
+    function getBaseMainnetCloneConfig() public view returns (NetworkConfig memory mainnetNetworkConfig) {
+        mainnetNetworkConfig = NetworkConfig({
+            depositToken: vm.envAddress("BASE_MAINNET_CLONE_DEPOSIT_TOKEN"),
+            shareToken: vm.envAddress("BASE_MAINNET_CLONE_SHARE_TOKEN"),
+            ownerAdress: vm.envAddress("BASE_MAINNET_CLONE_OWNER_WALLET_ADDRESS"),
+            name: "BASE Mainnet CLONE"
+        });
+    }
+
+    function getBaseSepoliaConfig() public view returns (NetworkConfig memory sepoliaNetworkConfig) {
         sepoliaNetworkConfig = NetworkConfig({
             depositToken: vm.envAddress("BASE_SEPOLIA_DEPOSIT_TOKEN"),
             shareToken: vm.envAddress("BASE_SEPOLIA_SHARE_TOKEN"),
-            ownerAdress: vm.envAddress("BASE_SEPOLIA_OWNER_WALLET_ADDRESS")
+            ownerAdress: vm.envAddress("BASE_SEPOLIA_OWNER_WALLET_ADDRESS"),
+            name: "BASE Sepolia"
         });
     }
 
@@ -84,8 +98,10 @@ contract HelperConfig is CodeConstants, Script {
         localNetworkConfig = NetworkConfig({
             depositToken: address(usdc),
             ownerAdress: ANVIL_CONTRACT_CREATOR,
-            shareToken: vm.envAddress("ANVIL_SHARE_TOKEN")
+            shareToken: vm.envAddress("ANVIL_SHARE_TOKEN"),
+            name: "Anvil"
         });
+
         vm.deal(localNetworkConfig.ownerAdress, 100 ether);
         return localNetworkConfig;
     }

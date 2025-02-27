@@ -12,6 +12,8 @@ contract DeployFundManager is Script {
 
         HelperConfig.NetworkConfig memory config = helperConfig.getConfig();
 
+        console.log("Deploying FundManager with config for: ", config.name);
+
         vm.startBroadcast(config.ownerAdress);
 
         //Create a new ShareToken
