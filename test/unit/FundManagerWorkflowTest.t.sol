@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.26;
 
-import {FundManager} from "../src/FundManager.sol";
-import {ShareToken} from "../src/ShareToken.sol";
+import {FundManager} from "../../src/FundManager.sol";
+import {ShareToken} from "../../src/ShareToken.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {FundManagerBase} from "./FundManagerBase.sol";

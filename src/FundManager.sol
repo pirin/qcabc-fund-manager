@@ -47,7 +47,7 @@ interface IShareToken {
 contract FundManager is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    string public constant VERSION = "0.3.3";
+    string public constant VERSION = "0.3.4";
 
     /// @dev The maximum time since the last portfolio value update before redemptions are paused.
     uint256 constant MAX_STALE_PORTFOLIO_VALUE = 2 days;
@@ -399,8 +399,17 @@ contract FundManager is Ownable, ReentrancyGuard {
 
     function calculateSharePrice() private {
         uint256 sharesupply = s_shareToken.totalSupply();
+        uint256 fundValue = totalFundValue();
+
         if (sharesupply > 0) {
-            s_sharePrice = (totalFundValue() * (10 ** i_shareDecimals)) / sharesupply;
+            if (fundValue > 0) {
+                s_sharePrice = (fundValue * (10 ** i_shareDecimals)) / sharesupply;
+            }
+            //In the unusual case where the fund has no value but there are shares outstanding,
+            //set the share price to the smallest possible price
+            if (s_sharePrice == 0) {
+                s_sharePrice = 1;
+            }
         } else {
             s_sharePrice = i_initialSharePrice;
         }

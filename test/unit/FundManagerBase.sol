@@ -5,14 +5,14 @@ pragma solidity ^0.8.26;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "./TestHelpers.sol";
-import {MockUSDC} from "./mocks/MockUSDC.sol";
+import {MockUSDC} from "../mocks/MockUSDC.sol";
 
-import {FundManager} from "../src/FundManager.sol";
-import {ShareToken} from "../src/ShareToken.sol";
+import {FundManager} from "../../src/FundManager.sol";
+import {ShareToken} from "../../src/ShareToken.sol";
 
-import {DeployFundManager} from "../script/DeployFundManager.s.sol";
-import {HelperConfig} from "../script/HelperConfig.s.sol";
-import {CodeConstants} from "../script/HelperConfig.s.sol";
+import {DeployFundManager} from "../../script/DeployFundManager.s.sol";
+import {HelperConfig} from "../../script/HelperConfig.s.sol";
+import {CodeConstants} from "../../script/HelperConfig.s.sol";
 
 import {Test, console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";

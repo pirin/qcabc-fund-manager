@@ -3,7 +3,7 @@
 pragma solidity ^0.8.26;
 
 import "forge-std/Test.sol";
-import "../src/ShareToken.sol";
+import "../../src/ShareToken.sol";
 
 contract ShareTokenTest is Test {
     ShareToken private shareToken;
