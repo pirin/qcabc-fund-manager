@@ -47,7 +47,7 @@ interface IShareToken {
 contract FundManager is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    string public constant VERSION = "0.3.4";
+    string public constant VERSION = "0.4.0";
 
     /// @dev The maximum time since the last portfolio value update before redemptions are paused.
     uint256 constant MAX_STALE_PORTFOLIO_VALUE = 2 days;
