@@ -288,4 +288,225 @@ contract FundManagerCoreTest is FundManagerBase {
         assertEq(fundManager.depositToken(), address(depositToken));
         assertEq(fundManager.shareToken(), address(shareToken));
     }
+
+    // ==================== Management Fee Tests ====================
+    function testInitialManagementFeeIsZero() external view {
+        assertEq(fundManager.managementFee(), 0);
+    }
+
+    function testSetManagementFeeSuccess() external {
+        vm.prank(FUND_OWNER);
+        vm.expectEmit(true, false, false, false);
+        emit FundManager.ManagementFeeUpdated(50);
+        fundManager.setManagementFee(50);
+
+        assertEq(fundManager.managementFee(), 50);
+    }
+
+    function testSetManagementFeeRevertNonOwner() external {
+        vm.prank(INVESTOR_1);
+        vm.expectRevert();
+        fundManager.setManagementFee(50);
+    }
+
+    function testSetManagementFeeRevertInvalidFee() external {
+        vm.prank(FUND_OWNER);
+        vm.expectRevert(FundManager.FundManager__InvalidManagementFee.selector);
+        fundManager.setManagementFee(1001); // Over 10% (1000 basis points)
+    }
+
+    function testSetManagementFeeEdgeCases() external {
+        // Test minimum valid fee (0.01% = 1 basis point)
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFee(1);
+        assertEq(fundManager.managementFee(), 1);
+
+        // Test maximum valid fee (1% = 100 basis points)
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFee(100);
+        assertEq(fundManager.managementFee(), 100);
+
+        // Test setting back to zero
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFee(0);
+        assertEq(fundManager.managementFee(), 0);
+    }
+
+    // ==================== Management Fee Recipient Tests ====================
+    function testInitialManagementFeeRecipientIsZero() external view {
+        assertEq(fundManager.managementFeeRecipient(), address(0));
+    }
+
+    function testSetManagementFeeRecipientSuccess() external {
+        address feeRecipient = makeAddr("feeRecipient");
+
+        vm.prank(FUND_OWNER);
+        vm.expectEmit(true, false, false, false);
+        emit FundManager.ManagementFeeRecipientUpdated(feeRecipient);
+        fundManager.setManagementFeeRecipient(feeRecipient);
+
+        assertEq(fundManager.managementFeeRecipient(), feeRecipient);
+    }
+
+    function testSetManagementFeeRecipientRevertNonOwner() external {
+        address feeRecipient = makeAddr("feeRecipient");
+
+        vm.prank(INVESTOR_1);
+        vm.expectRevert();
+        fundManager.setManagementFeeRecipient(feeRecipient);
+    }
+
+    function testSetManagementFeeRecipientToZero() external {
+        address feeRecipient = makeAddr("feeRecipient");
+
+        // First set a recipient
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFeeRecipient(feeRecipient);
+        assertEq(fundManager.managementFeeRecipient(), feeRecipient);
+
+        // Then set it back to zero (disable fee transfers)
+        vm.prank(FUND_OWNER);
+        vm.expectEmit(true, false, false, false);
+        emit FundManager.ManagementFeeRecipientUpdated(address(0));
+        fundManager.setManagementFeeRecipient(address(0));
+
+        assertEq(fundManager.managementFeeRecipient(), address(0));
+    }
+
+    // ==================== Deposit Tests with Management Fee Scenarios ====================
+    function testDepositWithNoManagementFee() external {
+        // Default state: no management fee set (0%), no recipient
+        assertEq(fundManager.managementFee(), 0);
+        assertEq(fundManager.managementFeeRecipient(), address(0));
+
+        uint256 depositAmount = USDC_100;
+        uint256 initialTreasuryBalance = fundManager.treasuryBalance();
+
+        // Make deposit
+        vm.prank(INVESTOR_1);
+        uint256 sharesMinted = fundManager.depositFunds(depositAmount);
+
+        // Verify full amount went to treasury (no fee deduction)
+        assertEq(fundManager.treasuryBalance(), initialTreasuryBalance + depositAmount);
+
+        // Verify shares were minted based on full deposit amount
+        assertEq(sharesMinted, depositAmount);
+
+        // No ManagementFeeCollected event should be emitted (tested by absence of expectEmit)
+    }
+
+    function testDepositWithManagementFeeButNoRecipient() external {
+        // Set management fee but no recipient
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFee(100); // 1%
+        assertEq(fundManager.managementFeeRecipient(), address(0));
+
+        uint256 depositAmount = USDC_100;
+        uint256 initialTreasuryBalance = fundManager.treasuryBalance();
+
+        // Make deposit - no fee should be deducted when no recipient is set
+        vm.prank(INVESTOR_1);
+        uint256 sharesMinted = fundManager.depositFunds(depositAmount);
+
+        // Verify full amount went to treasury (no fee deduction when no recipient)
+        assertEq(fundManager.treasuryBalance(), initialTreasuryBalance + depositAmount);
+
+        // Verify shares were minted based on full amount
+        assertEq(sharesMinted, depositAmount);
+
+        // No ManagementFeeCollected event should be emitted
+    }
+
+    function testDepositWithManagementFeeAndRecipient() external {
+        address feeRecipient = makeAddr("feeRecipient");
+
+        // Set management fee and recipient
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFee(100); // 1%
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFeeRecipient(feeRecipient);
+
+        uint256 depositAmount = USDC_100;
+        uint256 expectedFee = (depositAmount * 100) / 10000; // 1% of 100 USDC = 1 USDC
+
+        uint256 initialRecipientBalance = depositToken.balanceOf(feeRecipient);
+        uint256 initialTreasuryBalance = fundManager.treasuryBalance();
+
+        // Make deposit
+        vm.prank(INVESTOR_1);
+        vm.expectEmit(true, true, false, false);
+        emit FundManager.ManagementFeeCollected(INVESTOR_1, expectedFee, depositAmount);
+        uint256 sharesMinted = fundManager.depositFunds(depositAmount);
+
+        // Verify fee was transferred to recipient
+        assertEq(depositToken.balanceOf(feeRecipient), initialRecipientBalance + expectedFee);
+
+        // Verify treasury received deposit minus fee
+        assertEq(fundManager.treasuryBalance(), initialTreasuryBalance + depositAmount - expectedFee);
+
+        // Verify shares were minted based on amount after fee
+        assertEq(sharesMinted, depositAmount - expectedFee);
+    }
+
+    function testDepositWithZeroManagementFeeAndRecipient() external {
+        address feeRecipient = makeAddr("feeRecipient");
+
+        // Set zero management fee but with recipient
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFee(0); // 0%
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFeeRecipient(feeRecipient);
+
+        uint256 depositAmount = USDC_100;
+        uint256 initialRecipientBalance = depositToken.balanceOf(feeRecipient);
+        uint256 initialTreasuryBalance = fundManager.treasuryBalance();
+
+        // Make deposit
+        vm.prank(INVESTOR_1);
+        uint256 sharesMinted = fundManager.depositFunds(depositAmount);
+
+        // Verify no fee was transferred (fee is 0%)
+        assertEq(depositToken.balanceOf(feeRecipient), initialRecipientBalance);
+
+        // Verify full amount went to treasury
+        assertEq(fundManager.treasuryBalance(), initialTreasuryBalance + depositAmount);
+
+        // Verify shares were minted based on full amount
+        assertEq(sharesMinted, depositAmount);
+
+        // No ManagementFeeCollected event should be emitted
+    }
+
+    function testMultipleDepositsWithDifferentFeeConfigurations() external {
+        address feeRecipient = makeAddr("feeRecipient");
+
+        // Test 1: Deposit with no fee setup
+        vm.prank(INVESTOR_1);
+        uint256 shares1 = fundManager.depositFunds(USDC_100);
+        assertEq(shares1, USDC_100);
+        assertEq(depositToken.balanceOf(feeRecipient), 0);
+
+        // Test 2: Set fee but no recipient
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFee(50); // 0.5%
+
+        vm.prank(INVESTOR_2);
+        uint256 shares2 = fundManager.depositFunds(USDC_100);
+        assertEq(shares2, USDC_100); // No fee deduction without recipient
+        assertEq(depositToken.balanceOf(feeRecipient), 0);
+
+        // Test 3: Set recipient, now fees should be collected
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFeeRecipient(feeRecipient);
+
+        uint256 expectedFee = (USDC_100 * 50) / 10000; // 0.5% of 100 USDC
+
+        vm.prank(INVESTOR_3);
+        vm.expectEmit(true, true, false, false);
+        emit FundManager.ManagementFeeCollected(INVESTOR_3, expectedFee, USDC_100);
+        uint256 shares3 = fundManager.depositFunds(USDC_100);
+
+        assertEq(shares3, USDC_100 - expectedFee); // Fee deducted
+        assertEq(depositToken.balanceOf(feeRecipient), expectedFee);
+    }
 }

@@ -1,85 +1,238 @@
-**(Very simple) White Paper: Blockchain-Based Investment Club**
+# QCABC Fund Manager
 
-This document outlines a simplified on-chain club model, describing how deposits, portfolio valuation, and share calculations are managed, as well as highlighting potential limitations and improvements.
+A Solidity smart contract system implementing an on-chain investment fund manager with advanced portfolio management capabilities. The system enables users to deposit funds, receive share tokens representing ownership, and allows fund managers to invest collected funds off-chain while maintaining transparent on-chain portfolio valuations.
 
----
+## Overview
 
-## 1. Introduction
+The QCABC Fund Manager implements a blockchain-based investment club model where:
 
-An investment club pools member contributions to invest in external opportunities. This on-chain approach uses a smart contract to automate deposit handling, share distribution, and periodic portfolio valuation. Using an on-chain cap table with a clear share pricing formula, offers a transparent, straightforward approach to running an investment club. However, improvements in governance, valuation updates, multi-asset support, and liquidity handling can enhance fairness, security, and resilience in more sophisticated or high-volume scenarios.
+- Users deposit ERC20 tokens (typically USDC) and receive proportional share tokens
+- Share prices are calculated dynamically based on total fund value (treasury + portfolio)
+- Off-chain investments are managed with periodic on-chain value updates
+- Comprehensive access controls ensure security and compliance
 
----
+## Key Features
 
-## 2. Key Components
+### 🏦 **Core Fund Operations**
 
-1. **Deposit Token**  
-   - A single ERC20-like token is designated at contract creation.  
-   - All deposits must be made in this deposit token to keep accounting straightforward.
+- **Deposits**: Accept ERC20 deposits with dynamic share token minting based on current NAV
+- **Redemptions**: Allow users to redeem shares for underlying assets at current share price
+- **Portfolio Management**: Track off-chain investment values with on-chain updates
+- **Dynamic Pricing**: Real-time share price calculation based on total fund value
 
-2. **Share Token**  
-   - An ERC20-like share token is used to represent ownership in the club.  
-   - Members receive share tokens in proportion to their deposits.
+### 🔒 **Security & Access Controls**
 
-3. **Off-Chain Investment**  
-   - The contract owner sends collected deposit tokens to an external investment address for portfolio management.  
-   - Investment returns or updates are managed off-chain, and the latest valuation is periodically reported back to the contract.
+- **Whitelist Management**: Separate whitelists for depositors and portfolio value updaters
+- **Reentrancy Protection**: SafeERC20 and ReentrancyGuard implementation
+- **Owner Controls**: Multi-tiered access system with owner privileges
+- **Stale Data Protection**: Automatic redemption pausing if portfolio values become outdated (>2 days)
 
----
+### 💰 **Fee Management**
 
-## 3. Workflow Overview
+- **Management Fees**: Configurable deposit fees (0-10% maximum) in basis points
+- **Fee Recipients**: Designated addresses for automatic fee collection
+- **Transparent Fee Events**: Complete event logging for fee collection
 
-1. **Depositing Funds**  
-   - Members deposit funds using a specified "deposit token". This is usialy a Stablecoin like USDC or USDT but could be any ERC20 token.  
-   - The contract tracks the total deposit balance and credits new share tokens to the depositor.
+### 🛡️ **Risk Management**
 
-2. **Portfolio Updates**  
-   - The contract owner periodically updates the contract with the current total value of the investment (e.g., in USD or the deposit token’s value).  
-   - A timestamp is recorded for reference.
+- **Redemption Controls**: Owner can pause/resume redemptions during market volatility
+- **Portfolio Staleness Checks**: Prevents redemptions with outdated portfolio valuations
+- **Liquidity Management**: Automatic treasury balance verification before redemptions
+- **Decimal Precision**: Consistent 6-decimal handling for USDC compatibility
 
-3. **Share Price Calculation**  
-   - Defined as:  
-     \[
-       \text{Share Price} = \frac{\text{Current Portfolio Value}}{\text{Total Deposited Tokens}}
-     \]  
-   - This value is used for issuing new shares on deposits and for redeeming shares on withdrawals.
+## Architecture
 
-4. **Issuing Shares**  
-   - When a user deposits, the number of shares they receive is:  
-     \[
-       \text{Shares Issued} = \text{Deposit Amount} \times \text{Share Price}
-     \]  
-   - The contract mints new share tokens accordingly.
+### Smart Contracts
 
-5. **Withdrawal**  
-   - Users request a withdrawal by specifying how many shares they wish to redeem.  
-   - The contract calculates the redemption value based on the current share price and attempts to pay out that amount in deposit tokens.  
-   - Upon successful payment, the redeemed shares are burned.
+1. **FundManager.sol**
 
----
+   - Main contract managing all fund operations
+   - Handles deposits, redemptions, and portfolio updates
+   - Implements comprehensive access controls and safety features
 
-## 4. Potential Drawbacks and Improvements
+2. **ShareToken.sol**
+   - ERC20 token representing fund ownership
+   - 6 decimals to match typical stablecoin format
+   - Mint/burn functionality restricted to fund manager
 
-1. **Centralized Control**  
-   - Only the owner can move funds for investment.  
-   - **Improvement**: Use a multi-signature or DAO-based mechanism for greater security and transparency.
+### Key Components
 
-2. **Manual Valuation Updates**  
-   - Relies on the owner or another trusted party to submit accurate portfolio values.  
-   - **Improvement**: Integrate an oracle or automated pricing solution to reduce manual intervention and trust requirements.
+#### Share Price Calculation
 
-3. **Limited Asset Support**  
-   - Only one deposit token is accepted.  
-   - **Improvement**: Extend to support multiple deposit tokens or stablecoins for greater flexibility.
+The fund uses a basic NAV (Net Asset Value) calculation:
 
-4. **Liquidity Constraints**  
-   - Withdrawals rely on the contract’s token holdings. If there are insufficient tokens on-hand, redemptions can be delayed.  
-   - **Improvement**: Implement a withdrawal queue or partial redemption system to handle shortfalls gracefully.
+```
+sharePrice = (totalFundValue * 10^decimals) / totalSharesOutstanding
+totalFundValue = treasuryBalance + portfolioValue
+```
 
-5. **Simplistic Share Price Calculation**  
-   - If portfolio values change often, time gaps between updates can create inaccurate share pricing.  
-   - **Improvement**: More frequent or continuous updates would produce a fairer net asset valuation (NAV).
+#### Deposit Process
 
+1. User approves deposit token allowance
+2. Management fee is calculated and transferred (if configured)
+3. Remaining amount is used to mint shares based on current share price
+4. Share price is recalculated to reflect new fund composition
 
+#### Redemption Process
 
+1. Verify user has sufficient share tokens
+2. Check portfolio value is not stale (within 2 days)
+3. Calculate redemption value based on current share price
+4. Burn user's share tokens and transfer deposit tokens
+5. Recalculate share price
 
+## Technical Specifications
 
+- **Solidity Version**: ^0.8.26
+- **Token Standard**: ERC20 (OpenZeppelin)
+- **Decimals**: 6 (matching USDC standard)
+- **Share Price Precision**: 18 decimals for accurate calculations
+- **Maximum Management Fee**: 10% (1000 basis points)
+- **Portfolio Staleness Limit**: 2 days
+
+## Deployment & Configuration
+
+### Environment Setup
+
+Before deploying, you need to create a local `.env` file with the required configuration variables. Copy the provided `.env.example` template and fill in your specific values.
+
+**Required for all networks:**
+
+```bash
+cp .env.example .env
+# Edit .env with your specific values
+```
+
+### Environment Variables
+
+The deployment system requires different environment variables depending on the target network:
+
+#### Local Development (Anvil)
+
+- `ANVIL_RPC_URL`: Local Anvil RPC endpoint
+- `DEFAULT_ANVIL_KEY`: Private key for local testing
+- `ANVIL_SHARE_TOKEN`: Address of deployed ShareToken (if reusing)
+
+#### Base Sepolia Testnet
+
+- `BASE_SEPOLIA_RPC_URL`: Base Sepolia RPC endpoint
+- `BASE_SEPOLIA_OWNER_WALLET_NAME`: Cast wallet name for testnet deployment
+- `BASE_SEPOLIA_DEPOSIT_TOKEN`: USDC contract address on testnet
+- `BASE_SEPOLIA_SHARE_TOKEN`: ShareToken address (if pre-deployed)
+- `BASE_SEPOLIA_OWNER_WALLET_ADDRESS`: Owner wallet address
+- `BASESCAN_API_KEY`: BaseScan API key for contract verification
+
+#### Base Mainnet
+
+- `BASE_MAINNET_RPC_URL`: Base mainnet RPC endpoint
+- `BASE_MAINNET_OWNER_WALLET_NAME`: Cast wallet name for mainnet
+- `BASE_MAINNET_DEPOSIT_TOKEN`: USDC contract address
+- `BASE_MAINNET_SHARE_TOKEN`: ShareToken address (if pre-deployed)
+- `BASE_MAINNET_OWNER_WALLET_ADDRESS`: Owner wallet address
+- `BASE_MAINNET_API_KEY`: BaseScan API key for contract verification
+
+### Constructor Parameters
+
+- `_depositToken`: Address of accepted ERC20 deposit token (e.g., USDC)
+- `_shareToken`: Address of the ShareToken contract
+
+### Initial Setup Required
+
+1. **Environment Configuration**: Set up `.env` file with network-specific variables
+2. **Wallet Setup**: Configure Cast wallet for non-local deployments
+3. **Deploy ShareToken contract**: `make deployShareToken`
+4. **Deploy FundManager**: `make deployFundManager`
+5. **Configure whitelists**: Add authorized depositors and portfolio updaters (optional)
+6. **Set management fees**: Configure fee percentage and recipient (optional)
+
+## Usage Examples
+
+### For Fund Participants
+
+```solidity
+// Deposit 1000 USDC
+USDC.approve(fundManager, 1000e6);
+uint256 sharesReceived = fundManager.depositFunds(1000e6);
+
+// Check current share price and holdings
+uint256 currentPrice = fundManager.sharePrice();
+uint256 myShares = fundManager.sharesOwned(msg.sender);
+
+// Redeem 500 shares
+uint256 usdcReceived = fundManager.redeemShares(500e6);
+```
+
+### For Fund Managers
+
+```solidity
+// Update portfolio value (requires whitelist or owner)
+fundManager.setPortfolioValue(50000e6); // $50,000 portfolio value
+
+// Invest treasury funds off-chain
+fundManager.investFunds(investmentAddress, 10000e6);
+
+// Manage redemptions during volatile periods
+fundManager.pauseRedemptions();
+// ... later ...
+fundManager.resumeRedemptions();
+```
+
+## Security Considerations
+
+### Access Control Matrix
+
+| Function             | Owner              | Whitelisted Updater | Any User            |
+| -------------------- | ------------------ | ------------------- | ------------------- |
+| depositFunds         | ✓ (if whitelisted) | ✓ (if whitelisted)  | ✓ (if no whitelist) |
+| redeemShares         | ✓                  | ✓                   | ✓                   |
+| setPortfolioValue    | ✓                  | ✓                   | ✗                   |
+| investFunds          | ✓                  | ✗                   | ✗                   |
+| Whitelist Management | ✓                  | ✗                   | ✗                   |
+| Fee Configuration    | ✓                  | ✗                   | ✗                   |
+
+### Risk Mitigation
+
+- **Centralization Risk**: Multi-signature wallets recommended for owner functions
+- **Oracle Risk**: Manual portfolio updates require trusted updaters
+- **Liquidity Risk**: Treasury balance checks prevent over-redemptions
+- **Stale Data Risk**: Automatic pausing prevents redemptions with outdated valuations
+
+## Events & Monitoring
+
+The contract emits comprehensive events for all major operations:
+
+- `Deposited`: New deposits with share minting details
+- `Redeemed`: Share redemptions with payout amounts
+- `PortfolioUpdated`: Portfolio value changes with new share prices
+- `ManagementFeeCollected`: Fee collection details
+- `RedemptionsPaused/Resumed`: Redemption status changes
+
+## Development & Testing
+
+Built with Foundry framework:
+
+```bash
+# Build contracts
+make build
+
+# Run tests
+make test
+
+# Deploy locally
+make deploy
+
+# Deploy to testnet
+make deploy ARGS="--network sepolia"
+```
+
+## Future Enhancements
+
+- **Multi-Asset Support**: Accept multiple deposit token types
+- **Automated Oracles**: Integration with price feeds for real-time portfolio updates
+- **Governance Module**: DAO-based decision making for fund operations
+- **Advanced Fee Structures**: Performance fees and carry calculations
+- **Liquidity Pools**: Integration with DEX protocols for enhanced liquidity
+
+## License
+
+MIT License - see LICENSE file for details.

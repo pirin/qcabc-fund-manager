@@ -7,6 +7,7 @@ import {ShareToken} from "../../src/ShareToken.sol";
 import {Test, console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {FundManagerBase} from "./FundManagerBase.sol";
+import {TestHelpers} from "./TestHelpers.sol";
 
 contract FundManagerWorkflowTest is FundManagerBase {
     function testSimpleWorkflowDepositAndWithdraw() external {
@@ -63,5 +64,74 @@ contract FundManagerWorkflowTest is FundManagerBase {
         assertEq(redemption2, 72916650); //user gets 72.91 USDC back
 
         _printFundInfo();
+    }
+
+    // ==================== Management Fee Tests ====================
+    function testManagementFeeCalculation() external {
+        address feeRecipient = makeAddr("feeRecipient");
+
+        // Set management fee to 0.1% (10 basis point)
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFee(100); // in basis points 1% = 100 basis points
+        assertEq(fundManager.managementFee(), 100);
+
+        // Set management fee recipient
+        vm.prank(FUND_OWNER);
+        fundManager.setManagementFeeRecipient(feeRecipient);
+
+        uint256 initialRecipientBalance = depositToken.balanceOf(feeRecipient);
+        uint256 initialTreasuryBalance = fundManager.treasuryBalance();
+
+        // Test deposit 1: 300 USDC
+        vm.prank(INVESTOR_1);
+        vm.expectEmit(true, true, false, false);
+        emit FundManager.ManagementFeeCollected(INVESTOR_1, 3 * 1e6, 300 * 1e6);
+        uint256 shares1 = fundManager.depositFunds(300 * 1e6);
+
+        assertEq(shares1, 297 * 1e6); // 297 USDC worth of shares
+
+        // Verify fee was transferred to recipient
+        assertEq(depositToken.balanceOf(feeRecipient), initialRecipientBalance + 3 * 1e6);
+
+        // Verify treasury received deposit minus fee
+        assertEq(fundManager.treasuryBalance(), initialTreasuryBalance + 300 * 1e6 - 3 * 1e6);
+
+        console.log("After deposit 1 (300 USDC):");
+        console.log("  Share price: ", TestHelpers.toString6(fundManager.sharePrice()), "USDC per share");
+        console.log("  Operations Wallet: ", TestHelpers.toString6(depositToken.balanceOf(feeRecipient)), "USDC");
+        console.log("  Investment Treasury: ", TestHelpers.toString6(fundManager.treasuryBalance()), "USDC");
+
+        // Test deposit 2: 400 USDC
+        vm.prank(INVESTOR_2);
+        vm.expectEmit(true, true, false, false);
+        emit FundManager.ManagementFeeCollected(INVESTOR_2, 4 * 1e6, 400 * 1e6);
+        uint256 shares2 = fundManager.depositFunds(400 * 1e6);
+
+        assertEq(shares2, 396 * 1e6);
+
+        console.log("After deposit 2 (400 USDC):");
+        console.log("  Share price: ", TestHelpers.toString6(fundManager.sharePrice()), "USDC per share");
+        console.log("  Operations Wallet: ", TestHelpers.toString6(depositToken.balanceOf(feeRecipient)), "USDC");
+        console.log("  Investment Treasury: ", TestHelpers.toString6(fundManager.treasuryBalance()), "USDC");
+
+        // Test deposit 3: 500 USDC
+        vm.prank(INVESTOR_3);
+        vm.expectEmit(true, true, false, false);
+        emit FundManager.ManagementFeeCollected(INVESTOR_3, 5 * 1e6, 500 * 1e6);
+        uint256 shares3 = fundManager.depositFunds(500 * 1e6);
+
+        assertEq(shares3, 495 * 1e6);
+        assertEq(fundManager.treasuryBalance(), 1188 * 1e6); // 1188 USDC total
+
+        console.log("After deposit 3 (500 USDC):");
+        console.log("  Share price: ", TestHelpers.toString6(fundManager.sharePrice()), "USDC per share");
+        console.log("  Operations Wallet: ", TestHelpers.toString6(depositToken.balanceOf(feeRecipient)), "USDC");
+        console.log("  Investment Treasury: ", TestHelpers.toString6(fundManager.treasuryBalance()), "USDC");
+        console.log("=== Final Results ===");
+        console.log("Total Deposited: 1,200 USDC");
+        console.log("Treasury Balance: ", TestHelpers.toString6(fundManager.treasuryBalance()), "USDC");
+        console.log("  Operations Wallet: ", TestHelpers.toString6(depositToken.balanceOf(feeRecipient)), "USDC");
+        console.log("Total Shares: ", TestHelpers.toString6(fundManager.totalShares()), "shares");
+        console.log("Final Share Price: ", TestHelpers.toString6(fundManager.sharePrice()), "USDC per share");
     }
 }

@@ -52,6 +52,9 @@ contract FundManager is Ownable, ReentrancyGuard {
     /// @dev The maximum time since the last portfolio value update before redemptions are paused.
     uint256 constant MAX_STALE_PORTFOLIO_VALUE = 2 days;
 
+    /// @dev The maximum management fee allowed (in basis points).
+    uint256 constant MAX_MANAGEMENT_FEE = 1000; // 10% max fee
+
     /// @notice The ERC20 token accepted as deposits.
     IERC20 private s_depositToken;
 
@@ -90,6 +93,12 @@ contract FundManager is Ownable, ReentrancyGuard {
     /// @notice The current redemption state.
     RedemptionState private s_redemptionState;
 
+    /// @notice Fund management fee in basis points (1-100 = 0.01%-1%, 0 = no fee)
+    uint16 private s_managementFee;
+
+    /// @notice Address to receive management fees
+    address private s_managementFeeRecipient;
+
     // ========== ERRORS ==========
 
     error FundManager__InsufficientTreasuryFunds(uint256 available, uint256 required);
@@ -103,6 +112,8 @@ contract FundManager is Ownable, ReentrancyGuard {
     error FundManager__UnauthorizedDepositor();
     error FundManager__RedemptionsPaused();
     error FundManager__PortfoliValueIsStale();
+    error FundManager__InvalidManagementFee();
+    error FundManager__InvalidFeeRecipient();
 
     // ========== EVENTS ==========
 
@@ -114,6 +125,9 @@ contract FundManager is Ownable, ReentrancyGuard {
     event RedemptionsResumed();
     event AddressWhitelisted(address indexed addr);
     event AddressRemovedFromWhitelist(address indexed addr);
+    event ManagementFeeUpdated(uint16 indexed newFee);
+    event ManagementFeeCollected(address indexed depositor, uint256 indexed feeAmount, uint256 indexed depositAmount);
+    event ManagementFeeRecipientUpdated(address indexed newRecipient);
 
     // ========== CONSTRUCTOR ==========
 
@@ -206,20 +220,36 @@ contract FundManager is Ownable, ReentrancyGuard {
         // Transfer deposit tokens from the user.
         s_depositToken.safeTransferFrom(msg.sender, address(this), amount);
 
+        // Calculate management fee (fee is in basis points: 10 = 0.1%)
+        uint256 feeAmount = 0;
+        if (s_managementFee > 0 && s_managementFeeRecipient != address(0)) {
+            feeAmount = (amount * s_managementFee) / 10000; // 100 basis points = 1%
+
+            // Transfer fee to recipient if address is set
+            s_depositToken.safeTransfer(s_managementFeeRecipient, feeAmount);
+        }
+
+        // Amount available for shares after fee deduction
+        uint256 amountForShares = amount - feeAmount;
+
         // Use the current sharePrice (if no shares exist yet, sharePrice is the default 1e18).
         uint256 currentSharePrice = s_sharePrice;
 
-        // Calculate share tokens to mint:
-        // sharesToMint = (amount * 10^(shareDecimals)) / currentSharePrice.
-        uint256 sharesToMint = (amount * (10 ** i_shareDecimals)) / currentSharePrice;
+        // Calculate share tokens to mint based on amount after fee:
+        // sharesToMint = (amountForShares * 10^(shareDecimals)) / currentSharePrice.
+        uint256 sharesToMint = (amountForShares * (10 ** i_shareDecimals)) / currentSharePrice;
 
         // Mint share tokens to the user.
         s_shareToken.mint(msg.sender, sharesToMint);
 
-        //recaluclate share price
+        //recalculate share price
         calculateSharePrice();
 
         emit Deposited(msg.sender, amount, sharesToMint);
+
+        if (feeAmount > 0) {
+            emit ManagementFeeCollected(msg.sender, feeAmount, amount);
+        }
 
         return sharesToMint;
     }
@@ -392,11 +422,32 @@ contract FundManager is Ownable, ReentrancyGuard {
         s_depositWhitelist[addr] = false;
         emit AddressRemovedFromWhitelist(addr);
     }
+
+    /**
+     * @notice Set the fund management fee.
+     * @param mgmtFee Fee in basis points (1-100 = 0.01%-1%, 0 = no fee)
+     */
+    function setManagementFee(uint16 mgmtFee) external onlyOwner {
+        if (mgmtFee > MAX_MANAGEMENT_FEE) {
+            revert FundManager__InvalidManagementFee();
+        }
+        s_managementFee = mgmtFee;
+        emit ManagementFeeUpdated(mgmtFee);
+    }
+
+    /**
+     * @notice Set the management fee recipient address.
+     * @param feeRecipient Address to receive management fees (address(0) to disable transfers)
+     */
+    function setManagementFeeRecipient(address feeRecipient) external onlyOwner {
+        s_managementFeeRecipient = feeRecipient;
+        emit ManagementFeeRecipientUpdated(feeRecipient);
+    }
+
     // ========== INTERNAL FUNCTIONS ==========
     /**
      * @notice Calculate the share price based on the current portfolio value and total shares outstanding.
      */
-
     function calculateSharePrice() private {
         uint256 sharesupply = s_shareToken.totalSupply();
         uint256 fundValue = totalFundValue();
@@ -503,5 +554,21 @@ contract FundManager is Ownable, ReentrancyGuard {
         }
 
         return s_depositWhitelist[addr];
+    }
+
+    /**
+     * @notice Get the current fund management fee.
+     * @return The management fee in basis points (1-100 = 0.01%-1%)
+     */
+    function managementFee() external view returns (uint16) {
+        return s_managementFee;
+    }
+
+    /**
+     * @notice Get the management fee recipient address.
+     * @return The address that receives management fees
+     */
+    function managementFeeRecipient() external view returns (address) {
+        return s_managementFeeRecipient;
     }
 }
